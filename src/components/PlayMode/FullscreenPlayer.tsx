@@ -146,18 +146,24 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
           return;
         }
 
-        setCurrentIndex(nextIndex);
+        // IMPORTANT: Update current params FIRST before clearing transition
+        // This prevents the old preset from flashing at full opacity
         const nextPreset = getPreset(sequence.presetIds[nextIndex]);
         if (nextPreset) {
           setCurrentParams(nextPreset.params);
           setParams(nextPreset.params);
         }
-        startTime = currentTime;
+        
+        // Clear transition state AFTER params are updated
+        setNextParams(null);
         setTransitionProgress(0);
         isTransitioningRef.current = false;
         nextParamsSetRef.current = false;
         setIsTransitioning(false);
-        setNextParams(null);
+        
+        // Update index last
+        setCurrentIndex(nextIndex);
+        startTime = currentTime;
       }
 
       animationFrame = requestAnimationFrame(animate);
@@ -235,7 +241,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     >
       {/* Current visualization layer */}
       <div 
-        className="absolute inset-0 transition-opacity duration-100"
+        className="absolute inset-0"
         style={{ opacity: crossfadeOpacity.current }}
       >
         <VisualizationCanvas params={currentParams} className="w-full h-full" />
@@ -244,7 +250,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       {/* Next visualization layer (only rendered during transition) */}
       {isTransitioning && nextParams && (
         <div 
-          className="absolute inset-0 transition-opacity duration-100"
+          className="absolute inset-0"
           style={{ opacity: crossfadeOpacity.next }}
         >
           <VisualizationCanvas params={nextParams} className="w-full h-full" />
