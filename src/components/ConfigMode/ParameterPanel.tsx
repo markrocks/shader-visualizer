@@ -359,10 +359,13 @@ export function ParameterPanel() {
             label="Segments"
             value={params.kaleidoscopeSegments || 6}
             onChange={(v) => setParams({ kaleidoscopeSegments: Math.round(v) })}
-            min={3}
+            min={2}
             max={16}
             step={1}
           />
+          <p className="text-xs text-[var(--text-muted)]">
+            {params.kaleidoscopeSegments || 6} symmetrical reflections
+          </p>
         </div>
       )}
     </div>
