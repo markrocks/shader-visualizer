@@ -22,6 +22,7 @@ export interface VisualizationParams {
   smoothing: number;
   // Post-effects
   mirrorQuadrants: boolean;
+  mirrorSegments: number;
   // Effect-specific params
   blobCount?: number;
   particleCount?: number;
@@ -71,6 +72,7 @@ export const DEFAULT_PARAMS: VisualizationParams = {
   frequencyBand: 'full',
   smoothing: 0.8,
   mirrorQuadrants: false,
+  mirrorSegments: 4,
   blobCount: 5,
   particleCount: 1000,
   noiseOctaves: 4,

@@ -224,12 +224,24 @@ export function ParameterPanel() {
               checked:after:opacity-100"
           />
           <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
-            🪞 Mirror Quadrants
+            🪞 Mirror Segments
           </span>
         </label>
-        <p className="text-xs text-[var(--text-muted)] ml-8">
-          Splits screen into 4 mirrored quadrants
-        </p>
+        {params.mirrorQuadrants && (
+          <>
+            <Slider
+              label="Segments"
+              value={params.mirrorSegments || 4}
+              onChange={(v) => setParams({ mirrorSegments: Math.round(v) })}
+              min={2}
+              max={16}
+              step={1}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.mirrorSegments || 4} mirrored sections
+            </p>
+          </>
+        )}
       </div>
 
       {/* Colors */}

@@ -22,8 +22,12 @@ uniform float uAudioLevel;
 uniform int uBlobCount;
 uniform int uAnimationMode; // 0 = time-based, 1 = audio-reactive
 uniform int uMirrorQuadrants; // 0 = off, 1 = on
+uniform int uMirrorSegments;
 
 varying vec2 vUv;
+
+#define PI 3.14159265359
+#define TAU 6.28318530718
 
 // Simplex noise functions
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -61,9 +65,17 @@ float metaball(vec2 p, vec2 center, float radius) {
 void main() {
   vec2 uv = vUv * 2.0 - 1.0;
   
-  // Apply mirror quadrant effect
+  // Apply mirror segments effect
   if (uMirrorQuadrants == 1) {
-    uv = abs(uv);
+    float segments = float(uMirrorSegments);
+    float r = length(uv);
+    float a = atan(uv.y, uv.x);
+    float segmentAngle = TAU / segments;
+    a = mod(a, segmentAngle);
+    if (mod(floor(atan(uv.y, uv.x) / segmentAngle), 2.0) == 1.0) {
+      a = segmentAngle - a;
+    }
+    uv = vec2(cos(a), sin(a)) * r;
   }
   
   uv.x *= uResolution.x / uResolution.y;

@@ -49,6 +49,7 @@ export function ParticlesEffect({ params }: ParticlesEffectProps) {
       uAudioLevel: { value: 0 },
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
       uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
+      uMirrorSegments: { value: params.mirrorSegments || 4 },
     };
 
     return { geometry: geo, uniforms: unis };
@@ -64,6 +65,7 @@ export function ParticlesEffect({ params }: ParticlesEffectProps) {
       materialRef.current.uniforms.uIntensity.value = params.intensity;
       materialRef.current.uniforms.uAnimationMode.value = params.animationMode === 'audio-reactive' ? 1 : 0;
       materialRef.current.uniforms.uMirrorQuadrants.value = params.mirrorQuadrants ? 1 : 0;
+      materialRef.current.uniforms.uMirrorSegments.value = params.mirrorSegments || 4;
 
       if (params.animationMode === 'audio-reactive') {
         const level = audioData[params.frequencyBand] * params.audioSensitivity;

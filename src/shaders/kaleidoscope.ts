@@ -22,6 +22,7 @@ uniform float uAudioLevel;
 uniform int uKaleidoscopeSegments;
 uniform int uAnimationMode;
 uniform int uMirrorQuadrants;
+uniform int uMirrorSegments;
 
 varying vec2 vUv;
 
@@ -41,9 +42,17 @@ float hash(vec2 p) {
 void main() {
   vec2 uv = vUv * 2.0 - 1.0;
   
-  // Apply mirror quadrant effect
+  // Apply mirror segments effect (pre-kaleidoscope)
   if (uMirrorQuadrants == 1) {
-    uv = abs(uv);
+    float mirrorSegs = float(uMirrorSegments);
+    float r = length(uv);
+    float a = atan(uv.y, uv.x);
+    float segmentAngle = TAU / mirrorSegs;
+    a = mod(a, segmentAngle);
+    if (mod(floor(atan(uv.y, uv.x) / segmentAngle), 2.0) == 1.0) {
+      a = segmentAngle - a;
+    }
+    uv = vec2(cos(a), sin(a)) * r;
   }
   
   uv.x *= uResolution.x / uResolution.y;

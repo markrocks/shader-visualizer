@@ -5,6 +5,10 @@ uniform float uScale;
 uniform float uAudioLevel;
 uniform int uAnimationMode;
 uniform int uMirrorQuadrants;
+uniform int uMirrorSegments;
+
+#define PI 3.14159265359
+#define TAU 6.28318530718
 
 attribute float aRandom;
 attribute float aSize;
@@ -30,9 +34,17 @@ void main() {
   
   pos *= uScale;
   
-  // Apply mirror quadrant effect by mirroring positions into top-right quadrant
+  // Apply mirror segments effect
   if (uMirrorQuadrants == 1) {
-    pos.xy = abs(pos.xy);
+    float segments = float(uMirrorSegments);
+    float r = length(pos.xy);
+    float a = atan(pos.y, pos.x);
+    float segmentAngle = TAU / segments;
+    a = mod(a, segmentAngle);
+    if (mod(floor(atan(pos.y, pos.x) / segmentAngle), 2.0) == 1.0) {
+      a = segmentAngle - a;
+    }
+    pos.xy = vec2(cos(a), sin(a)) * r;
   }
   
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
