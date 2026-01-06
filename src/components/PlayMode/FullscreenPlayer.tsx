@@ -32,6 +32,8 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   const hideControlsTimerRef = useRef<number | null>(null);
+  const isTransitioningRef = useRef(false);
+  const nextParamsSetRef = useRef(false);
 
   // Enter fullscreen on mount
   useEffect(() => {
@@ -93,6 +95,10 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
 
     let animationFrame: number;
     let startTime = performance.now();
+    
+    // Reset refs when effect starts
+    isTransitioningRef.current = false;
+    nextParamsSetRef.current = false;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -100,22 +106,27 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
 
       if (cycleTime < presetDuration) {
         // Showing current preset (not transitioning)
-        if (isTransitioning) {
+        if (isTransitioningRef.current) {
+          isTransitioningRef.current = false;
+          nextParamsSetRef.current = false;
           setIsTransitioning(false);
-        }
-        setTransitionProgress(0);
-        if (nextParams !== null) {
           setNextParams(null);
         }
+        setTransitionProgress(0);
       } else {
         // Transitioning to next
-        if (!isTransitioning) {
+        if (!isTransitioningRef.current) {
+          isTransitioningRef.current = true;
           setIsTransitioning(true);
+          
           // Prepare next preset params at the start of transition
-          const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-          const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-          if (nextPreset) {
-            setNextParams(nextPreset.params);
+          if (!nextParamsSetRef.current) {
+            nextParamsSetRef.current = true;
+            const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
+            const nextPreset = getPreset(sequence.presetIds[nextIndex]);
+            if (nextPreset) {
+              setNextParams(nextPreset.params);
+            }
           }
         }
         
@@ -143,6 +154,8 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         }
         startTime = currentTime;
         setTransitionProgress(0);
+        isTransitioningRef.current = false;
+        nextParamsSetRef.current = false;
         setIsTransitioning(false);
         setNextParams(null);
       }
@@ -157,7 +170,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit, isTransitioning, nextParams]);
+  }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit]);
 
   // Calculate crossfade opacity with easing
   const crossfadeOpacity = useMemo(() => {
