@@ -259,18 +259,28 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       className="fixed inset-0 z-50 bg-black"
       onMouseMove={handleMouseMove}
     >
-      {/* Layer A - always rendered, behind layer B */}
+      {/* Layer A - hidden when opacity is very low */}
       <div 
         className="absolute inset-0"
-        style={{ opacity: layerAOpacity }}
+        style={{ 
+          opacity: layerAOpacity,
+          visibility: layerAOpacity < 0.01 ? 'hidden' : 'visible',
+          transform: layerAOpacity < 0.01 ? 'translateX(-9999px)' : 'none',
+          pointerEvents: layerAOpacity < 0.5 ? 'none' : 'auto'
+        }}
       >
         <VisualizationCanvas params={layerAParams} className="w-full h-full" />
       </div>
 
-      {/* Layer B - always rendered, on top of layer A */}
+      {/* Layer B - hidden when opacity is very low */}
       <div 
         className="absolute inset-0"
-        style={{ opacity: layerBOpacity }}
+        style={{ 
+          opacity: layerBOpacity,
+          visibility: layerBOpacity < 0.01 ? 'hidden' : 'visible',
+          transform: layerBOpacity < 0.01 ? 'translateX(-9999px)' : 'none',
+          pointerEvents: layerBOpacity < 0.5 ? 'none' : 'auto'
+        }}
       >
         <VisualizationCanvas params={layerBParams} className="w-full h-full" />
       </div>
