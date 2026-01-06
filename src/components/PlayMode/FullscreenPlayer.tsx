@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { usePresetStore } from '../../stores/presetStore';
 import { useVisualizationStore } from '../../stores/visualizationStore';
@@ -9,6 +9,11 @@ import type { Sequence, VisualizationParams } from '../../types';
 interface FullscreenPlayerProps {
   sequence: Sequence;
   onExit: () => void;
+}
+
+// Easing function for smoother crossfade
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
@@ -24,6 +29,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const [showControls, setShowControls] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   const hideControlsTimerRef = useRef<number | null>(null);
 
@@ -93,21 +99,29 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       const cycleTime = elapsed % totalDuration;
 
       if (cycleTime < presetDuration) {
-        // Showing current preset
+        // Showing current preset (not transitioning)
+        if (isTransitioning) {
+          setIsTransitioning(false);
+        }
         setTransitionProgress(0);
-        setNextParams(null);
+        if (nextParams !== null) {
+          setNextParams(null);
+        }
       } else {
         // Transitioning to next
+        if (!isTransitioning) {
+          setIsTransitioning(true);
+          // Prepare next preset params at the start of transition
+          const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
+          const nextPreset = getPreset(sequence.presetIds[nextIndex]);
+          if (nextPreset) {
+            setNextParams(nextPreset.params);
+          }
+        }
+        
         const transitionElapsed = cycleTime - presetDuration;
         const progress = Math.min(transitionElapsed / transitionDuration, 1);
         setTransitionProgress(progress);
-
-        // Prepare next preset params
-        const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-        const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-        if (nextPreset) {
-          setNextParams(nextPreset.params);
-        }
       }
 
       // Check if we should move to next preset
@@ -129,6 +143,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         }
         startTime = currentTime;
         setTransitionProgress(0);
+        setIsTransitioning(false);
         setNextParams(null);
       }
 
@@ -142,18 +157,19 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit]);
+  }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit, isTransitioning, nextParams]);
 
-  // Interpolate between current and next params during transition
-  const getInterpolatedParams = useCallback((): VisualizationParams => {
-    if (!nextParams || transitionProgress === 0) {
-      return currentParams;
+  // Calculate crossfade opacity with easing
+  const crossfadeOpacity = useMemo(() => {
+    if (!isTransitioning || transitionProgress === 0) {
+      return { current: 1, next: 0 };
     }
-
-    // For now, we'll just use the current params
-    // A more sophisticated version would lerp numeric values
-    return transitionProgress > 0.5 ? nextParams : currentParams;
-  }, [currentParams, nextParams, transitionProgress]);
+    const easedProgress = easeInOutCubic(transitionProgress);
+    return {
+      current: 1 - easedProgress,
+      next: easedProgress,
+    };
+  }, [isTransitioning, transitionProgress]);
 
   const handleMouseMove = useCallback(() => {
     // Clear any existing timer
@@ -204,7 +220,23 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       className="fixed inset-0 z-50 bg-black"
       onMouseMove={handleMouseMove}
     >
-      <VisualizationCanvas params={getInterpolatedParams()} className="w-full h-full" />
+      {/* Current visualization layer */}
+      <div 
+        className="absolute inset-0 transition-opacity duration-100"
+        style={{ opacity: crossfadeOpacity.current }}
+      >
+        <VisualizationCanvas params={currentParams} className="w-full h-full" />
+      </div>
+
+      {/* Next visualization layer (only rendered during transition) */}
+      {isTransitioning && nextParams && (
+        <div 
+          className="absolute inset-0 transition-opacity duration-100"
+          style={{ opacity: crossfadeOpacity.next }}
+        >
+          <VisualizationCanvas params={nextParams} className="w-full h-full" />
+        </div>
+      )}
 
       {/* Controls overlay */}
       <div
