@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { OrthographicCamera } from '@react-three/drei';
 import type { VisualizationParams } from '../../types';
 import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect } from './effects';
 
@@ -26,6 +27,7 @@ function Scene({ params }: { params: VisualizationParams }) {
 
   return (
     <>
+      <OrthographicCamera makeDefault position={[0, 0, 1]} />
       {renderEffect()}
       <EffectComposer>
         <Bloom
@@ -43,9 +45,9 @@ export function VisualizationCanvas({ params, className = '' }: VisualizationCan
   return (
     <div className={`w-full h-full ${className}`} style={{ background: params.backgroundColor }}>
       <Canvas
-        camera={{ position: [0, 0, 1], fov: 75 }}
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
+        style={{ width: '100%', height: '100%' }}
       >
         <Scene params={params} />
       </Canvas>

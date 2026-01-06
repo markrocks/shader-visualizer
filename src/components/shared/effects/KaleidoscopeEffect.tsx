@@ -12,7 +12,7 @@ interface KaleidoscopeEffectProps {
 export function KaleidoscopeEffect({ params }: KaleidoscopeEffectProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const { size } = useThree();
+  const { size, viewport } = useThree();
   const audioData = useAudioStore((state) => state.audioData);
 
   const uniforms = useMemo(
@@ -59,8 +59,8 @@ export function KaleidoscopeEffect({ params }: KaleidoscopeEffectProps) {
   });
 
   return (
-    <mesh ref={meshRef}>
-      <planeGeometry args={[2, 2]} />
+    <mesh ref={meshRef} scale={[viewport.width, viewport.height, 1]}>
+      <planeGeometry args={[1, 1]} />
       <shaderMaterial
         ref={materialRef}
         vertexShader={kaleidoscopeVertexShader}
