@@ -27,9 +27,9 @@ export function SequenceBuilder({ onPlaySequence }: SequenceBuilderProps) {
     ? sequences.find((s) => s.id === selectedSequenceId)
     : null;
 
-  const handleCreateSequence = useCallback(() => {
+  const handleCreateSequence = useCallback(async () => {
     if (newSequenceName.trim()) {
-      const sequence = addSequence(newSequenceName.trim());
+      const sequence = await addSequence(newSequenceName.trim());
       setSelectedSequenceId(sequence.id);
       setNewSequenceName('');
     }

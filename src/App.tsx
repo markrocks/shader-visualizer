@@ -1,6 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ParameterPanel, PresetManager, SequenceBuilder, PreviewCanvas } from './components/ConfigMode';
 import { FullscreenPlayer } from './components/PlayMode';
+import { SettingsModal } from './components/Settings';
+import { useSettingsStore, loadDirectoryHandle } from './stores/settingsStore';
+import { usePresetStore } from './stores/presetStore';
+import { verifyPermission } from './utils/fileStorage';
 import type { Sequence } from './types';
 
 type Tab = 'params' | 'presets' | 'sequences';
@@ -8,6 +12,36 @@ type Tab = 'params' | 'presets' | 'sequences';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('params');
   const [playingSequence, setPlayingSequence] = useState<Sequence | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  const { setDirectoryHandle, setIsSettingsOpen, storageFolderName } = useSettingsStore();
+  const { loadFromFolder, isLoading } = usePresetStore();
+
+  // Load directory handle from IndexedDB on mount
+  useEffect(() => {
+    const initializeStorage = async () => {
+      try {
+        const handle = await loadDirectoryHandle();
+        if (handle) {
+          // Verify we still have permission
+          const hasPermission = await verifyPermission(handle);
+          if (hasPermission) {
+            setDirectoryHandle(handle, handle.name);
+            await loadFromFolder(handle);
+          } else {
+            // Permission denied, clear the stored handle
+            console.log('Permission denied to previously selected folder');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing storage:', error);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    initializeStorage();
+  }, [setDirectoryHandle, loadFromFolder]);
 
   const handlePlaySequence = useCallback((sequence: Sequence) => {
     setPlayingSequence(sequence);
@@ -21,6 +55,10 @@ function App() {
     setActiveTab(tab);
   }, []);
 
+  const handleOpenSettings = useCallback(() => {
+    setIsSettingsOpen(true);
+  }, [setIsSettingsOpen]);
+
   // If we're playing a sequence, show the fullscreen player
   if (playingSequence) {
     return <FullscreenPlayer sequence={playingSequence} onExit={handleExitPlayer} />;
@@ -28,16 +66,36 @@ function App() {
 
   return (
     <div className="w-full h-full flex bg-[var(--bg-primary)]">
+      {/* Settings Modal */}
+      <SettingsModal />
+
       {/* Left Panel - Controls */}
       <div className="w-80 h-full flex flex-col border-r border-[var(--border-color)] bg-[var(--bg-secondary)]">
         {/* Header */}
         <div className="p-4 border-b border-[var(--border-color)]">
-          <h1 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
-            <span className="text-[var(--accent-primary)]">◉</span> Shader Visualizer
-          </h1>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            Create • Configure • Play
-          </p>
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+              <span className="text-[var(--accent-primary)]">◉</span> Shader Visualizer
+            </h1>
+            <button
+              type="button"
+              onClick={handleOpenSettings}
+              className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+              title="Settings"
+            >
+              ⚙️
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs text-[var(--text-muted)]">
+              Create • Configure • Play
+            </p>
+            {storageFolderName && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]">
+                📁 {storageFolderName}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -76,6 +134,14 @@ function App() {
             Sequences
           </button>
         </div>
+
+        {/* Loading State */}
+        {(!isInitialized || isLoading) && (
+          <div className="p-4 flex items-center justify-center gap-2 text-[var(--text-muted)] text-sm">
+            <span className="animate-spin">⏳</span>
+            <span>Loading...</span>
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden">
