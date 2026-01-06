@@ -34,6 +34,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const hideControlsTimerRef = useRef<number | null>(null);
   const isTransitioningRef = useRef(false);
   const nextParamsSetRef = useRef(false);
+  const pendingSwapRef = useRef(false);
 
   // Enter fullscreen on mount
   useEffect(() => {
@@ -99,21 +100,35 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     // Reset refs when effect starts
     isTransitioningRef.current = false;
     nextParamsSetRef.current = false;
+    pendingSwapRef.current = false;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
+      
+      // Handle pending swap from previous frame
+      // This ensures the DOM has updated with new currentParams before we reset opacity
+      if (pendingSwapRef.current) {
+        pendingSwapRef.current = false;
+        isTransitioningRef.current = false;
+        nextParamsSetRef.current = false;
+        setIsTransitioning(false);
+        setNextParams(null);
+        setTransitionProgress(0);
+      }
+      
       const cycleTime = elapsed % totalDuration;
 
-      if (cycleTime < presetDuration) {
+      if (cycleTime < presetDuration && !pendingSwapRef.current) {
         // Showing current preset (not transitioning)
-        if (isTransitioningRef.current) {
+        // Only reset if we're not in a pending swap
+        if (isTransitioningRef.current && !pendingSwapRef.current) {
           isTransitioningRef.current = false;
           nextParamsSetRef.current = false;
           setIsTransitioning(false);
           setNextParams(null);
         }
         setTransitionProgress(0);
-      } else {
+      } else if (cycleTime >= presetDuration) {
         // Transitioning to next
         if (!isTransitioningRef.current) {
           isTransitioningRef.current = true;
@@ -146,22 +161,18 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
           return;
         }
 
-        // IMPORTANT: Update current params FIRST before clearing transition
-        // This prevents the old preset from flashing at full opacity
+        // Update current params to the next preset
         const nextPreset = getPreset(sequence.presetIds[nextIndex]);
         if (nextPreset) {
           setCurrentParams(nextPreset.params);
           setParams(nextPreset.params);
         }
         
-        // Clear transition state AFTER params are updated
-        setNextParams(null);
-        setTransitionProgress(0);
-        isTransitioningRef.current = false;
-        nextParamsSetRef.current = false;
-        setIsTransitioning(false);
+        // Mark that we need to complete the swap on the NEXT frame
+        // This ensures the DOM renders with new currentParams before opacity resets
+        pendingSwapRef.current = true;
         
-        // Update index last
+        // Update index and reset timer
         setCurrentIndex(nextIndex);
         startTime = currentTime;
       }
