@@ -35,6 +35,8 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   // Track which layer is currently "front" (the one fading in during transition)
   const activeLayerRef = useRef<'A' | 'B'>('A');
   const isTransitioningRef = useRef(false);
+  // Track last set opacity to avoid unnecessary state updates
+  const lastOpacityRef = useRef({ a: 1, b: 0 });
   
   const hideControlsTimerRef = useRef<number | null>(null);
 
@@ -100,6 +102,18 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     let startTime = performance.now();
     isTransitioningRef.current = false;
 
+    // Helper to set opacity only when changed (avoids unnecessary re-renders)
+    const setOpacities = (a: number, b: number) => {
+      if (Math.abs(lastOpacityRef.current.a - a) > 0.001) {
+        lastOpacityRef.current.a = a;
+        setLayerAOpacity(a);
+      }
+      if (Math.abs(lastOpacityRef.current.b - b) > 0.001) {
+        lastOpacityRef.current.b = b;
+        setLayerBOpacity(b);
+      }
+    };
+
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const cycleTime = elapsed % totalDuration;
@@ -109,13 +123,11 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         if (isTransitioningRef.current) {
           isTransitioningRef.current = false;
         }
-        // Active layer stays at 1, inactive at 0
+        // Active layer stays at 1, inactive at 0 - only set once
         if (activeLayerRef.current === 'A') {
-          setLayerAOpacity(1);
-          setLayerBOpacity(0);
+          setOpacities(1, 0);
         } else {
-          setLayerAOpacity(0);
-          setLayerBOpacity(1);
+          setOpacities(0, 1);
         }
       } else {
         // Transitioning
@@ -141,11 +153,9 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         
         // Crossfade: active fades out, inactive fades in
         if (activeLayerRef.current === 'A') {
-          setLayerAOpacity(1 - progress);
-          setLayerBOpacity(progress);
+          setOpacities(1 - progress, progress);
         } else {
-          setLayerAOpacity(progress);
-          setLayerBOpacity(1 - progress);
+          setOpacities(progress, 1 - progress);
         }
       }
 
@@ -249,24 +259,18 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       className="fixed inset-0 z-50 bg-black"
       onMouseMove={handleMouseMove}
     >
-      {/* Layer A - always rendered */}
+      {/* Layer A - always rendered, behind layer B */}
       <div 
         className="absolute inset-0"
-        style={{ 
-          opacity: layerAOpacity,
-          zIndex: activeLayerRef.current === 'A' ? 1 : 2 
-        }}
+        style={{ opacity: layerAOpacity }}
       >
         <VisualizationCanvas params={layerAParams} className="w-full h-full" />
       </div>
 
-      {/* Layer B - always rendered */}
+      {/* Layer B - always rendered, on top of layer A */}
       <div 
         className="absolute inset-0"
-        style={{ 
-          opacity: layerBOpacity,
-          zIndex: activeLayerRef.current === 'B' ? 1 : 2 
-        }}
+        style={{ opacity: layerBOpacity }}
       >
         <VisualizationCanvas params={layerBParams} className="w-full h-full" />
       </div>

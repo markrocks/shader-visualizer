@@ -43,7 +43,7 @@ function Scene({ params }: { params: VisualizationParams }) {
 
 export function VisualizationCanvas({ params, className = '' }: VisualizationCanvasProps) {
   return (
-    <div className={`w-full h-full ${className}`} style={{ background: params.backgroundColor }}>
+    <div className={`w-full h-full ${className}`} style={{ background: '#000' }}>
       <Canvas
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
