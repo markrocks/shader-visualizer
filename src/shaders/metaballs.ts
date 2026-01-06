@@ -21,6 +21,7 @@ uniform float uEvolutionRate;
 uniform float uAudioLevel;
 uniform int uBlobCount;
 uniform int uAnimationMode; // 0 = time-based, 1 = audio-reactive
+uniform int uMirrorQuadrants; // 0 = off, 1 = on
 
 varying vec2 vUv;
 
@@ -59,6 +60,12 @@ float metaball(vec2 p, vec2 center, float radius) {
 
 void main() {
   vec2 uv = vUv * 2.0 - 1.0;
+  
+  // Apply mirror quadrant effect
+  if (uMirrorQuadrants == 1) {
+    uv = abs(uv);
+  }
+  
   uv.x *= uResolution.x / uResolution.y;
   
   float time = uTime * uSpeed;

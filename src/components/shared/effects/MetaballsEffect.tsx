@@ -30,6 +30,7 @@ export function MetaballsEffect({ params }: MetaballsEffectProps) {
       uAudioLevel: { value: 0 },
       uBlobCount: { value: params.blobCount || 5 },
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
+      uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
     }),
     []
   );
@@ -48,6 +49,7 @@ export function MetaballsEffect({ params }: MetaballsEffectProps) {
       materialRef.current.uniforms.uEvolutionRate.value = params.evolutionRate;
       materialRef.current.uniforms.uBlobCount.value = params.blobCount || 5;
       materialRef.current.uniforms.uAnimationMode.value = params.animationMode === 'audio-reactive' ? 1 : 0;
+      materialRef.current.uniforms.uMirrorQuadrants.value = params.mirrorQuadrants ? 1 : 0;
 
       if (params.animationMode === 'audio-reactive') {
         const level = audioData[params.frequencyBand] * params.audioSensitivity;

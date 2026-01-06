@@ -21,6 +21,7 @@ uniform float uEvolutionRate;
 uniform float uAudioLevel;
 uniform int uNoiseOctaves;
 uniform int uAnimationMode;
+uniform int uMirrorQuadrants;
 
 varying vec2 vUv;
 
@@ -79,6 +80,12 @@ float fbm(vec2 p, int octaves) {
 
 void main() {
   vec2 uv = vUv * 2.0 - 1.0;
+  
+  // Apply mirror quadrant effect
+  if (uMirrorQuadrants == 1) {
+    uv = abs(uv);
+  }
+  
   uv.x *= uResolution.x / uResolution.y;
   
   float time = uTime * uSpeed * uEvolutionRate;

@@ -30,6 +30,7 @@ export function KaleidoscopeEffect({ params }: KaleidoscopeEffectProps) {
       uAudioLevel: { value: 0 },
       uKaleidoscopeSegments: { value: params.kaleidoscopeSegments || 6 },
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
+      uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
     }),
     []
   );
@@ -48,6 +49,7 @@ export function KaleidoscopeEffect({ params }: KaleidoscopeEffectProps) {
       materialRef.current.uniforms.uEvolutionRate.value = params.evolutionRate;
       materialRef.current.uniforms.uKaleidoscopeSegments.value = params.kaleidoscopeSegments || 6;
       materialRef.current.uniforms.uAnimationMode.value = params.animationMode === 'audio-reactive' ? 1 : 0;
+      materialRef.current.uniforms.uMirrorQuadrants.value = params.mirrorQuadrants ? 1 : 0;
 
       if (params.animationMode === 'audio-reactive') {
         const level = audioData[params.frequencyBand] * params.audioSensitivity;

@@ -202,6 +202,36 @@ export function ParameterPanel() {
         </>
       )}
 
+      {/* Post Effects */}
+      <div className="flex flex-col gap-3">
+        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+          Post Effects
+        </label>
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={params.mirrorQuadrants}
+            onChange={(e) => {
+              e.stopPropagation();
+              setParams({ mirrorQuadrants: e.target.checked });
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-5 h-5 rounded border-2 border-[var(--border-color)] bg-[var(--bg-tertiary)]
+              checked:bg-[var(--accent-primary)] checked:border-[var(--accent-primary)]
+              cursor-pointer transition-all appearance-none relative
+              after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center
+              after:justify-center after:text-white after:text-xs after:opacity-0
+              checked:after:opacity-100"
+          />
+          <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+            🪞 Mirror Quadrants
+          </span>
+        </label>
+        <p className="text-xs text-[var(--text-muted)] ml-8">
+          Splits screen into 4 mirrored quadrants
+        </p>
+      </div>
+
       {/* Colors */}
       <div className="flex flex-col gap-3">
         <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">

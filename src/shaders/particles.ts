@@ -4,6 +4,7 @@ uniform float uSpeed;
 uniform float uScale;
 uniform float uAudioLevel;
 uniform int uAnimationMode;
+uniform int uMirrorQuadrants;
 
 attribute float aRandom;
 attribute float aSize;
@@ -28,6 +29,11 @@ void main() {
   pos.z = sin(time * 0.2 + aRandom * 5.0) * 0.5 * modulator;
   
   pos *= uScale;
+  
+  // Apply mirror quadrant effect by mirroring positions into top-right quadrant
+  if (uMirrorQuadrants == 1) {
+    pos.xy = abs(pos.xy);
+  }
   
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   vDistance = -mvPosition.z;

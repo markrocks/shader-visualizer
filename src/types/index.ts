@@ -20,6 +20,8 @@ export interface VisualizationParams {
   audioSensitivity: number;
   frequencyBand: FrequencyBand;
   smoothing: number;
+  // Post-effects
+  mirrorQuadrants: boolean;
   // Effect-specific params
   blobCount?: number;
   particleCount?: number;
@@ -68,6 +70,7 @@ export const DEFAULT_PARAMS: VisualizationParams = {
   audioSensitivity: 1.0,
   frequencyBand: 'full',
   smoothing: 0.8,
+  mirrorQuadrants: false,
   blobCount: 5,
   particleCount: 1000,
   noiseOctaves: 4,

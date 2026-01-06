@@ -30,6 +30,7 @@ export function NoiseEffect({ params }: NoiseEffectProps) {
       uAudioLevel: { value: 0 },
       uNoiseOctaves: { value: params.noiseOctaves || 4 },
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
+      uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
     }),
     []
   );
@@ -48,6 +49,7 @@ export function NoiseEffect({ params }: NoiseEffectProps) {
       materialRef.current.uniforms.uEvolutionRate.value = params.evolutionRate;
       materialRef.current.uniforms.uNoiseOctaves.value = params.noiseOctaves || 4;
       materialRef.current.uniforms.uAnimationMode.value = params.animationMode === 'audio-reactive' ? 1 : 0;
+      materialRef.current.uniforms.uMirrorQuadrants.value = params.mirrorQuadrants ? 1 : 0;
 
       if (params.animationMode === 'audio-reactive') {
         const level = audioData[params.frequencyBand] * params.audioSensitivity;
