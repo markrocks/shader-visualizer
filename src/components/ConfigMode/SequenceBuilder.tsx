@@ -4,9 +4,10 @@ import type { Sequence } from '../../types';
 
 interface SequenceBuilderProps {
   onPlaySequence: (sequence: Sequence) => void;
+  onSelectSequence?: (sequence: Sequence | null) => void;
 }
 
-export function SequenceBuilder({ onPlaySequence }: SequenceBuilderProps) {
+export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBuilderProps) {
   const [newSequenceName, setNewSequenceName] = useState('');
   const [selectedSequenceId, setSelectedSequenceId] = useState<string | null>(null);
   const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
@@ -64,7 +65,11 @@ export function SequenceBuilder({ onPlaySequence }: SequenceBuilderProps) {
 
   const handleSelectSequence = useCallback((id: string) => {
     setSelectedSequenceId(id);
-  }, []);
+    const sequence = sequences.find((s) => s.id === id);
+    if (sequence && onSelectSequence) {
+      onSelectSequence(sequence);
+    }
+  }, [sequences, onSelectSequence]);
 
   const handlePlaySequence = useCallback((sequence: Sequence, e: React.MouseEvent) => {
     e.stopPropagation();

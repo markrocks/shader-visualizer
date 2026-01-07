@@ -12,6 +12,7 @@ type Tab = 'params' | 'presets' | 'sequences';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('params');
   const [playingSequence, setPlayingSequence] = useState<Sequence | null>(null);
+  const [previewingSequence, setPreviewingSequence] = useState<Sequence | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
   const { setDirectoryHandle, setIsSettingsOpen, storageFolderName } = useSettingsStore();
@@ -53,6 +54,14 @@ function App() {
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab);
+    // Clear sequence preview when switching away from sequences tab
+    if (tab !== 'sequences') {
+      setPreviewingSequence(null);
+    }
+  }, []);
+
+  const handleSelectSequence = useCallback((sequence: Sequence | null) => {
+    setPreviewingSequence(sequence);
   }, []);
 
   const handleOpenSettings = useCallback(() => {
@@ -147,7 +156,12 @@ function App() {
         <div className="flex-1 overflow-hidden">
           {activeTab === 'params' && <ParameterPanel />}
           {activeTab === 'presets' && <PresetManager />}
-          {activeTab === 'sequences' && <SequenceBuilder onPlaySequence={handlePlaySequence} />}
+          {activeTab === 'sequences' && (
+            <SequenceBuilder 
+              onPlaySequence={handlePlaySequence} 
+              onSelectSequence={handleSelectSequence}
+            />
+          )}
         </div>
 
         {/* Footer */}
@@ -160,7 +174,7 @@ function App() {
 
       {/* Right Panel - Preview */}
       <div className="flex-1 h-full p-4">
-        <PreviewCanvas />
+        <PreviewCanvas previewingSequence={previewingSequence} />
       </div>
     </div>
   );
