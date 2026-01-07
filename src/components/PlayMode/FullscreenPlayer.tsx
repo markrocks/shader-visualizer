@@ -26,6 +26,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const [showControls, setShowControls] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
+  const [debugPhase, setDebugPhase] = useState<'preset' | 'transitioning' | 'complete'>('preset');
   
   // Two-layer approach: layers never unmount, just swap visibility
   const [layerAParams, setLayerAParams] = useState<VisualizationParams>(DEFAULT_PARAMS);
@@ -123,6 +124,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         if (isTransitioningRef.current) {
           isTransitioningRef.current = false;
         }
+        setDebugPhase('preset');
         // Active layer stays at 1, inactive at 0 - only set once
         if (activeLayerRef.current === 'A') {
           setOpacities(1, 0);
@@ -131,6 +133,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         }
       } else {
         // Transitioning
+        setDebugPhase('transitioning');
         if (!isTransitioningRef.current) {
           isTransitioningRef.current = true;
           
@@ -161,6 +164,7 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
 
       // Check if we should move to next preset
       if (elapsed >= totalDuration) {
+        setDebugPhase('complete');
         const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
         
         if (nextIndex === 0 && !sequence.looping) {
@@ -283,6 +287,13 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         }}
       >
         <VisualizationCanvas params={layerBParams} className="w-full h-full" />
+      </div>
+
+      {/* Debug label */}
+      <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/70 text-white text-sm rounded z-20">
+        {debugPhase === 'preset' && 'Preset Phase'}
+        {debugPhase === 'transitioning' && 'Transition Phase'}
+        {debugPhase === 'complete' && 'Transition Complete'}
       </div>
 
       {/* Controls overlay */}
