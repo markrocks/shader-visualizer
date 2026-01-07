@@ -27,6 +27,10 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
   const [debugPhase, setDebugPhase] = useState<'preset' | 'transitioning' | 'complete'>('preset');
+
+  // Debug pause ref - when true, the animation loop will pause after transition
+  const debugPauseRef = useRef(false);
+  const debugPauseTimerRef = useRef<number | null>(null);
   
   // Two-layer approach: layers never unmount, just swap visibility
   const [layerAParams, setLayerAParams] = useState<VisualizationParams>(DEFAULT_PARAMS);
@@ -117,6 +121,56 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
+
+      // Check if we should move to next preset FIRST (before cycleTime calculation)
+      if (elapsed >= totalDuration && !debugPauseRef.current) {
+        // Set final opacities: the layer that was fading IN should be at 1
+        // (opposite of activeLayerRef, since active was fading OUT)
+        if (activeLayerRef.current === 'A') {
+          setOpacities(0, 1); // Layer A faded out, Layer B faded in
+        } else {
+          setOpacities(1, 0); // Layer B faded out, Layer A faded in
+        }
+        // DEBUG: Pause here for 2 seconds to observe 'Transition Complete'
+        setDebugPhase('complete');
+        debugPauseRef.current = true;
+        
+        // Clear any existing timer
+        if (debugPauseTimerRef.current) {
+          clearTimeout(debugPauseTimerRef.current);
+        }
+        
+        // After 2 seconds, continue with the transition
+        debugPauseTimerRef.current = window.setTimeout(() => {
+          debugPauseRef.current = false;
+          
+          const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
+          
+          if (nextIndex === 0 && !sequence.looping) {
+            exitFullscreen();
+            onExit();
+            return;
+          }
+
+          // Swap which layer is active (the one that just faded in is now active)
+          activeLayerRef.current = activeLayerRef.current === 'A' ? 'B' : 'A';
+          
+          // Update the store params
+          const nextPreset = getPreset(sequence.presetIds[nextIndex]);
+          if (nextPreset) {
+            setParams(nextPreset.params);
+          }
+          
+          setCurrentIndex(nextIndex);
+          isTransitioningRef.current = false;
+          setDebugPhase('preset');
+        }, 2000);
+        
+        // Don't continue animation loop during debug pause
+        return;
+      }
+
+      // Only process cycleTime logic if we haven't completed the transition
       const cycleTime = elapsed % totalDuration;
 
       if (cycleTime < presetDuration) {
@@ -162,31 +216,6 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
         }
       }
 
-      // Check if we should move to next preset
-      if (elapsed >= totalDuration) {
-        setDebugPhase('complete');
-        const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-        
-        if (nextIndex === 0 && !sequence.looping) {
-          exitFullscreen();
-          onExit();
-          return;
-        }
-
-        // Swap which layer is active (the one that just faded in is now active)
-        activeLayerRef.current = activeLayerRef.current === 'A' ? 'B' : 'A';
-        
-        // Update the store params
-        const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-        if (nextPreset) {
-          setParams(nextPreset.params);
-        }
-        
-        setCurrentIndex(nextIndex);
-        startTime = currentTime;
-        isTransitioningRef.current = false;
-      }
-
       animationFrame = requestAnimationFrame(animate);
     };
 
@@ -195,6 +224,9 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     return () => {
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
+      }
+      if (debugPauseTimerRef.current) {
+        clearTimeout(debugPauseTimerRef.current);
       }
     };
   }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit]);
