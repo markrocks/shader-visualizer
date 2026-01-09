@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { OrthographicCamera } from '@react-three/drei';
 import type { VisualizationParams } from '../../types';
-import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect } from './effects';
+import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, PlasmaEffect, VoronoiEffect, TunnelEffect } from './effects';
 
 interface VisualizationCanvasProps {
   params: VisualizationParams;
@@ -20,6 +20,12 @@ function Scene({ params }: { params: VisualizationParams }) {
         return <NoiseEffect params={params} />;
       case 'kaleidoscope':
         return <KaleidoscopeEffect params={params} />;
+      case 'plasma':
+        return <PlasmaEffect params={params} />;
+      case 'voronoi':
+        return <VoronoiEffect params={params} />;
+      case 'tunnel':
+        return <TunnelEffect params={params} />;
       default:
         return <MetaballsEffect params={params} />;
     }

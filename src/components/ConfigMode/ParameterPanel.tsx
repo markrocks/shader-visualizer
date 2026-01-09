@@ -8,6 +8,9 @@ const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'particles', label: '✨ Particles' },
   { value: 'noise', label: '🌊 Noise Flow' },
   { value: 'kaleidoscope', label: '🔮 Kaleidoscope' },
+  { value: 'plasma', label: '🌈 Plasma' },
+  { value: 'voronoi', label: '🔷 Voronoi' },
+  { value: 'tunnel', label: '🌀 Tunnel' },
 ];
 
 const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
@@ -377,6 +380,79 @@ export function ParameterPanel() {
           />
           <p className="text-xs text-[var(--text-muted)]">
             {params.kaleidoscopeSegments || 6} symmetrical reflections
+          </p>
+        </div>
+      )}
+
+      {params.effectType === 'plasma' && (
+        <div className="flex flex-col gap-3">
+          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+            Plasma
+          </label>
+          <Slider
+            label="Complexity"
+            value={params.plasmaComplexity || 5}
+            onChange={(v) => setParams({ plasmaComplexity: Math.round(v) })}
+            min={1}
+            max={8}
+            step={1}
+          />
+          <p className="text-xs text-[var(--text-muted)]">
+            {params.plasmaComplexity || 5} wave layers
+          </p>
+        </div>
+      )}
+
+      {params.effectType === 'voronoi' && (
+        <div className="flex flex-col gap-3">
+          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+            Voronoi Cells
+          </label>
+          <Slider
+            label="Cell Count"
+            value={params.voronoiCells || 20}
+            onChange={(v) => setParams({ voronoiCells: Math.round(v) })}
+            min={5}
+            max={50}
+            step={1}
+          />
+          <Slider
+            label="Edge Width"
+            value={params.voronoiEdgeWidth || 0.02}
+            onChange={(v) => setParams({ voronoiEdgeWidth: v })}
+            min={0.001}
+            max={0.1}
+            step={0.001}
+          />
+          <p className="text-xs text-[var(--text-muted)]">
+            {params.voronoiCells || 20} organic cells
+          </p>
+        </div>
+      )}
+
+      {params.effectType === 'tunnel' && (
+        <div className="flex flex-col gap-3">
+          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+            Tunnel
+          </label>
+          <Slider
+            label="Depth"
+            value={params.tunnelDepth || 10}
+            onChange={(v) => setParams({ tunnelDepth: v })}
+            min={1}
+            max={30}
+            step={0.5}
+          />
+          <Slider
+            label="Rings"
+            value={params.tunnelRings || 8}
+            onChange={(v) => setParams({ tunnelRings: Math.round(v) })}
+            min={2}
+            max={20}
+            step={1}
+          />
+          <p className="text-xs text-[var(--text-muted)]">
+            {params.tunnelRings || 8} tunnel rings
           </p>
         </div>
       )}

@@ -1,4 +1,4 @@
-export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope';
+export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel';
 export type AnimationMode = 'time-based' | 'audio-reactive';
 export type FrequencyBand = 'bass' | 'mid' | 'treble' | 'full';
 export type AudioSource = 'microphone' | 'file';
@@ -28,6 +28,14 @@ export interface VisualizationParams {
   particleCount?: number;
   noiseOctaves?: number;
   kaleidoscopeSegments?: number;
+  // Plasma params
+  plasmaComplexity?: number;
+  // Voronoi params
+  voronoiCells?: number;
+  voronoiEdgeWidth?: number;
+  // Tunnel params
+  tunnelDepth?: number;
+  tunnelRings?: number;
 }
 
 export interface Preset {
@@ -77,4 +85,9 @@ export const DEFAULT_PARAMS: VisualizationParams = {
   particleCount: 1000,
   noiseOctaves: 4,
   kaleidoscopeSegments: 6,
+  plasmaComplexity: 5,
+  voronoiCells: 20,
+  voronoiEdgeWidth: 0.02,
+  tunnelDepth: 10,
+  tunnelRings: 8,
 };
