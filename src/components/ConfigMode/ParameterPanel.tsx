@@ -11,6 +11,7 @@ const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'plasma', label: '🌈 Plasma' },
   { value: 'voronoi', label: '🔷 Voronoi' },
   { value: 'tunnel', label: '🌀 Tunnel' },
+  { value: 'truchet', label: '🔲 Truchet' },
 ];
 
 const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
@@ -453,6 +454,33 @@ export function ParameterPanel() {
           />
           <p className="text-xs text-[var(--text-muted)]">
             {params.tunnelRings || 8} tunnel rings
+          </p>
+        </div>
+      )}
+
+      {params.effectType === 'truchet' && (
+        <div className="flex flex-col gap-3">
+          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+            Truchet Tiles
+          </label>
+          <Slider
+            label="Grid Size"
+            value={params.truchetGridSize || 8}
+            onChange={(v) => setParams({ truchetGridSize: Math.round(v) })}
+            min={3}
+            max={20}
+            step={1}
+          />
+          <Slider
+            label="Line Width"
+            value={params.truchetLineWidth || 0.08}
+            onChange={(v) => setParams({ truchetLineWidth: v })}
+            min={0.02}
+            max={0.2}
+            step={0.01}
+          />
+          <p className="text-xs text-[var(--text-muted)]">
+            {params.truchetGridSize || 8}×{params.truchetGridSize || 8} tile grid
           </p>
         </div>
       )}

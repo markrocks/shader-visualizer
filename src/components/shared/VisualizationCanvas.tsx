@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { OrthographicCamera } from '@react-three/drei';
 import type { VisualizationParams } from '../../types';
-import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, PlasmaEffect, VoronoiEffect, TunnelEffect } from './effects';
+import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, PlasmaEffect, VoronoiEffect, TunnelEffect, TruchetEffect } from './effects';
 
 interface VisualizationCanvasProps {
   params: VisualizationParams;
@@ -26,6 +26,8 @@ function Scene({ params }: { params: VisualizationParams }) {
         return <VoronoiEffect params={params} />;
       case 'tunnel':
         return <TunnelEffect params={params} />;
+      case 'truchet':
+        return <TruchetEffect params={params} />;
       default:
         return <MetaballsEffect params={params} />;
     }
