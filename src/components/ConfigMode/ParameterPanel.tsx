@@ -110,7 +110,7 @@ function Section({ title, indent = true, children }: SectionProps) {
         type="button"
         onClick={() => toggleSection(title)}
         aria-expanded={!collapsed}
-        className="flex items-center justify-between text-xs uppercase tracking-wider
+        className="flex items-center justify-between text-sm font-bold uppercase tracking-wider
           text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
       >
         <span>{title}</span>
