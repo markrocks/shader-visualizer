@@ -5,8 +5,10 @@ interface SettingsState {
   storageFolderName: string | null;
   directoryHandle: FileSystemDirectoryHandle | null;
   isSettingsOpen: boolean;
+  collapsedSections: string[];
   setDirectoryHandle: (handle: FileSystemDirectoryHandle | null, name: string | null) => void;
   setIsSettingsOpen: (open: boolean) => void;
+  toggleSection: (title: string) => void;
   clearStorage: () => void;
 }
 
@@ -16,6 +18,7 @@ export const useSettingsStore = create<SettingsState>()(
       storageFolderName: null,
       directoryHandle: null,
       isSettingsOpen: false,
+      collapsedSections: [],
       
       setDirectoryHandle: (handle, name) => set({ 
         directoryHandle: handle,
@@ -23,6 +26,12 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       
       setIsSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
+
+      toggleSection: (title) => set((state) => ({
+        collapsedSections: state.collapsedSections.includes(title)
+          ? state.collapsedSections.filter((t) => t !== title)
+          : [...state.collapsedSections, title],
+      })),
       
       clearStorage: () => set({ 
         directoryHandle: null, 
@@ -32,7 +41,8 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'visualizer-settings',
       partialize: (state) => ({ 
-        storageFolderName: state.storageFolderName 
+        storageFolderName: state.storageFolderName,
+        collapsedSections: state.collapsedSections,
       }),
     }
   )

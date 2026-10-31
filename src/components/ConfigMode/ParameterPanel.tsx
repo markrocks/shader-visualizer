@@ -1,7 +1,10 @@
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useVisualizationStore } from '../../stores/visualizationStore';
+import { usePresetStore } from '../../stores/presetStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { EffectType, FrequencyBand } from '../../types';
 import { AudioAnalyzer } from '../shared/AudioAnalyzer';
+import { SavePresetDialog } from './SavePresetDialog';
 
 const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'metaballs', label: '🫧 Metaballs' },
@@ -12,6 +15,7 @@ const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'voronoi', label: '🔷 Voronoi' },
   { value: 'tunnel', label: '🌀 Tunnel' },
   { value: 'truchet', label: '🔲 Truchet' },
+  { value: 'clouds', label: '☁️ Protean Clouds' },
 ];
 
 const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
@@ -90,8 +94,54 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
   );
 }
 
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function Section({ title, children }: SectionProps) {
+  const collapsed = useSettingsStore((state) => state.collapsedSections.includes(title));
+  const toggleSection = useSettingsStore((state) => state.toggleSection);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={() => toggleSection(title)}
+        aria-expanded={!collapsed}
+        className="flex items-center justify-between text-xs uppercase tracking-wider
+          text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+      >
+        <span>{title}</span>
+        <span className={`transition-transform ${collapsed ? '-rotate-90' : ''}`}>▾</span>
+      </button>
+      {!collapsed && children}
+    </div>
+  );
+}
+
 export function ParameterPanel() {
   const { params, setParams } = useVisualizationStore();
+  const addPreset = usePresetStore((state) => state.addPreset);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
+
+  // Hide the "Saved" confirmation after a moment
+  useEffect(() => {
+    if (!savedName) return;
+    const timer = setTimeout(() => setSavedName(null), 2500);
+    return () => clearTimeout(timer);
+  }, [savedName]);
+
+  const handleSavePreset = useCallback((name: string) => {
+    addPreset(name, params);
+    setIsSaveDialogOpen(false);
+    setSavedName(name);
+  }, [addPreset, params]);
+
+  const handleCloseSaveDialog = useCallback(() => {
+    setIsSaveDialogOpen(false);
+  }, []);
 
   const handleEffectChange = useCallback((effectType: EffectType) => {
     setParams({ effectType });
@@ -106,383 +156,396 @@ export function ParameterPanel() {
   }, [setParams]);
 
   return (
-    <div className="flex flex-col gap-6 p-4 h-full overflow-y-auto">
-      {/* Effect Type */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-          Effect Type
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {EFFECT_OPTIONS.map((option) => (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 flex flex-col gap-5 p-4 overflow-y-auto">
+        {/* Effect Type */}
+        <Section title="Effect Type">
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleEffectChange(option.value)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
+                  params.effectType === option.value
+                    ? 'bg-[var(--accent-primary)] text-white glow'
+                    : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        {/* Animation Mode */}
+        <Section title="Animation Mode">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              key={option.value}
               type="button"
-              onClick={() => handleEffectChange(option.value)}
+              onClick={() => handleAnimationModeChange('time-based')}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
-                params.effectType === option.value
+                params.animationMode === 'time-based'
                   ? 'bg-[var(--accent-primary)] text-white glow'
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
               }`}
             >
-              {option.label}
+              ⏱️ Time-Based
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Animation Mode */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-          Animation Mode
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleAnimationModeChange('time-based')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
-              params.animationMode === 'time-based'
-                ? 'bg-[var(--accent-primary)] text-white glow'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
-            }`}
-          >
-            ⏱️ Time-Based
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAnimationModeChange('audio-reactive')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
-              params.animationMode === 'audio-reactive'
-                ? 'bg-[var(--accent-primary)] text-white glow'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
-            }`}
-          >
-            🎵 Audio Reactive
-          </button>
-        </div>
-      </div>
-
-      {/* Audio Controls - only shown for audio-reactive mode */}
-      {params.animationMode === 'audio-reactive' && (
-        <>
-          <AudioAnalyzer />
-          
-          <div className="flex flex-col gap-2">
-            <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-              Frequency Band
-            </label>
-            <div className="grid grid-cols-4 gap-1">
-              {FREQUENCY_BANDS.map((band) => (
-                <button
-                  key={band.value}
-                  type="button"
-                  onClick={() => handleFrequencyBandChange(band.value)}
-                  className={`px-2 py-1.5 rounded text-xs font-medium transition-all-smooth ${
-                    params.frequencyBand === band.value
-                      ? 'bg-[var(--accent-secondary)] text-white'
-                      : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
-                  }`}
-                >
-                  {band.label}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => handleAnimationModeChange('audio-reactive')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
+                params.animationMode === 'audio-reactive'
+                  ? 'bg-[var(--accent-primary)] text-white glow'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+              }`}
+            >
+              🎵 Audio Reactive
+            </button>
           </div>
+        </Section>
 
+        {/* Audio Controls - only shown for audio-reactive mode */}
+        {params.animationMode === 'audio-reactive' && (
+          <Section title="Audio">
+            <AudioAnalyzer />
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                Frequency Band
+              </label>
+              <div className="grid grid-cols-4 gap-1">
+                {FREQUENCY_BANDS.map((band) => (
+                  <button
+                    key={band.value}
+                    type="button"
+                    onClick={() => handleFrequencyBandChange(band.value)}
+                    className={`px-2 py-1.5 rounded text-xs font-medium transition-all-smooth ${
+                      params.frequencyBand === band.value
+                        ? 'bg-[var(--accent-secondary)] text-white'
+                        : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+                    }`}
+                  >
+                    {band.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Slider
+              label="Audio Sensitivity"
+              value={params.audioSensitivity}
+              onChange={(v) => setParams({ audioSensitivity: v })}
+              min={0}
+              max={3}
+            />
+
+            <Slider
+              label="Smoothing"
+              value={params.smoothing}
+              onChange={(v) => setParams({ smoothing: v })}
+              min={0}
+              max={1}
+            />
+          </Section>
+        )}
+
+        {/* Post Effects */}
+        <Section title="Post Effects">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={params.mirrorQuadrants}
+              onChange={(e) => {
+                e.stopPropagation();
+                setParams({ mirrorQuadrants: e.target.checked });
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-5 h-5 rounded border-2 border-[var(--border-color)] bg-[var(--bg-tertiary)]
+                checked:bg-[var(--accent-primary)] checked:border-[var(--accent-primary)]
+                cursor-pointer transition-all appearance-none relative
+                after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center
+                after:justify-center after:text-white after:text-xs after:opacity-0
+                checked:after:opacity-100"
+            />
+            <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+              🪞 Mirror Segments
+            </span>
+          </label>
+          {params.mirrorQuadrants && (
+            <>
+              <Slider
+                label="Segments"
+                value={params.mirrorSegments || 4}
+                onChange={(v) => setParams({ mirrorSegments: Math.round(v) })}
+                min={2}
+                max={16}
+                step={1}
+              />
+              <p className="text-xs text-[var(--text-muted)]">
+                {params.mirrorSegments || 4} mirrored sections
+              </p>
+            </>
+          )}
+        </Section>
+
+        {/* Colors */}
+        <Section title="Colors">
+          <ColorPicker
+            label="Primary"
+            value={params.primaryColor}
+            onChange={(v) => setParams({ primaryColor: v })}
+          />
+          <ColorPicker
+            label="Secondary"
+            value={params.secondaryColor}
+            onChange={(v) => setParams({ secondaryColor: v })}
+          />
+          <ColorPicker
+            label="Background"
+            value={params.backgroundColor}
+            onChange={(v) => setParams({ backgroundColor: v })}
+          />
+        </Section>
+
+        {/* Common Parameters */}
+        <Section title="Animation">
           <Slider
-            label="Audio Sensitivity"
-            value={params.audioSensitivity}
-            onChange={(v) => setParams({ audioSensitivity: v })}
-            min={0}
-            max={3}
+            label="Speed"
+            value={params.speed}
+            onChange={(v) => setParams({ speed: v })}
           />
-
           <Slider
-            label="Smoothing"
-            value={params.smoothing}
-            onChange={(v) => setParams({ smoothing: v })}
+            label="Scale"
+            value={params.scale}
+            onChange={(v) => setParams({ scale: v })}
+          />
+          <Slider
+            label="Intensity"
+            value={params.intensity}
+            onChange={(v) => setParams({ intensity: v })}
             min={0}
-            max={1}
+            max={1.5}
           />
-        </>
-      )}
+        </Section>
 
-      {/* Post Effects */}
-      <div className="flex flex-col gap-3">
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-          Post Effects
-        </label>
-        <label className="flex items-center gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={params.mirrorQuadrants}
-            onChange={(e) => {
-              e.stopPropagation();
-              setParams({ mirrorQuadrants: e.target.checked });
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-5 h-5 rounded border-2 border-[var(--border-color)] bg-[var(--bg-tertiary)]
-              checked:bg-[var(--accent-primary)] checked:border-[var(--accent-primary)]
-              cursor-pointer transition-all appearance-none relative
-              after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center
-              after:justify-center after:text-white after:text-xs after:opacity-0
-              checked:after:opacity-100"
-          />
-          <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
-            🪞 Mirror Segments
-          </span>
-        </label>
-        {params.mirrorQuadrants && (
-          <>
+        {/* Time-based specific parameters */}
+        {params.animationMode === 'time-based' && (
+          <Section title="Time Animation">
+            <Slider
+              label="Wave Frequency"
+              value={params.waveFrequency}
+              onChange={(v) => setParams({ waveFrequency: v })}
+              min={0.1}
+              max={5}
+            />
+            <Slider
+              label="Evolution Rate"
+              value={params.evolutionRate}
+              onChange={(v) => setParams({ evolutionRate: v })}
+              min={0.1}
+              max={2}
+            />
+          </Section>
+        )}
+
+        {/* Effect-specific parameters */}
+        {params.effectType === 'metaballs' && (
+          <Section title="Metaballs">
+            <Slider
+              label="Blob Count"
+              value={params.blobCount || 5}
+              onChange={(v) => setParams({ blobCount: Math.round(v) })}
+              min={2}
+              max={10}
+              step={1}
+            />
+          </Section>
+        )}
+
+        {params.effectType === 'particles' && (
+          <Section title="Particles">
+            <Slider
+              label="Particle Count"
+              value={(params.particleCount || 1000) / 100}
+              onChange={(v) => setParams({ particleCount: Math.round(v * 100) })}
+              min={1}
+              max={50}
+              step={1}
+            />
+          </Section>
+        )}
+
+        {params.effectType === 'noise' && (
+          <Section title="Noise">
+            <Slider
+              label="Octaves"
+              value={params.noiseOctaves || 4}
+              onChange={(v) => setParams({ noiseOctaves: Math.round(v) })}
+              min={1}
+              max={8}
+              step={1}
+            />
+          </Section>
+        )}
+
+        {params.effectType === 'kaleidoscope' && (
+          <Section title="Kaleidoscope">
             <Slider
               label="Segments"
-              value={params.mirrorSegments || 4}
-              onChange={(v) => setParams({ mirrorSegments: Math.round(v) })}
+              value={params.kaleidoscopeSegments || 6}
+              onChange={(v) => setParams({ kaleidoscopeSegments: Math.round(v) })}
               min={2}
               max={16}
               step={1}
             />
             <p className="text-xs text-[var(--text-muted)]">
-              {params.mirrorSegments || 4} mirrored sections
+              {params.kaleidoscopeSegments || 6} symmetrical reflections
             </p>
-          </>
+          </Section>
+        )}
+
+        {params.effectType === 'plasma' && (
+          <Section title="Plasma">
+            <Slider
+              label="Complexity"
+              value={params.plasmaComplexity || 5}
+              onChange={(v) => setParams({ plasmaComplexity: Math.round(v) })}
+              min={1}
+              max={8}
+              step={1}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.plasmaComplexity || 5} wave layers
+            </p>
+          </Section>
+        )}
+
+        {params.effectType === 'voronoi' && (
+          <Section title="Voronoi Cells">
+            <Slider
+              label="Cell Count"
+              value={params.voronoiCells || 20}
+              onChange={(v) => setParams({ voronoiCells: Math.round(v) })}
+              min={5}
+              max={50}
+              step={1}
+            />
+            <Slider
+              label="Edge Width"
+              value={params.voronoiEdgeWidth || 0.02}
+              onChange={(v) => setParams({ voronoiEdgeWidth: v })}
+              min={0.001}
+              max={0.1}
+              step={0.001}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.voronoiCells || 20} organic cells
+            </p>
+          </Section>
+        )}
+
+        {params.effectType === 'tunnel' && (
+          <Section title="Tunnel">
+            <Slider
+              label="Depth"
+              value={params.tunnelDepth || 10}
+              onChange={(v) => setParams({ tunnelDepth: v })}
+              min={1}
+              max={30}
+              step={0.5}
+            />
+            <Slider
+              label="Rings"
+              value={params.tunnelRings || 8}
+              onChange={(v) => setParams({ tunnelRings: Math.round(v) })}
+              min={2}
+              max={20}
+              step={1}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.tunnelRings || 8} tunnel rings
+            </p>
+          </Section>
+        )}
+
+        {params.effectType === 'truchet' && (
+          <Section title="Truchet Tiles">
+            <Slider
+              label="Grid Size"
+              value={params.truchetGridSize || 8}
+              onChange={(v) => setParams({ truchetGridSize: Math.round(v) })}
+              min={3}
+              max={20}
+              step={1}
+            />
+            <Slider
+              label="Line Width"
+              value={params.truchetLineWidth || 0.08}
+              onChange={(v) => setParams({ truchetLineWidth: v })}
+              min={0.02}
+              max={0.2}
+              step={0.01}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.truchetGridSize || 8}×{params.truchetGridSize || 8} tile grid
+            </p>
+          </Section>
+        )}
+
+        {params.effectType === 'clouds' && (
+          <Section title="Protean Clouds">
+            <Slider
+              label="Density"
+              value={params.cloudsDensity ?? 0.5}
+              onChange={(v) => setParams({ cloudsDensity: v })}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+            <Slider
+              label="Theme Colors"
+              value={params.cloudsColorMix ?? 0}
+              onChange={(v) => setParams({ cloudsColorMix: v })}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+            <Slider
+              label="Quality"
+              value={params.cloudsSteps || 100}
+              onChange={(v) => setParams({ cloudsSteps: Math.round(v) })}
+              min={40}
+              max={130}
+              step={1}
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              {params.cloudsSteps || 100} raymarch steps. Lower is faster. Based on "Protean clouds" by nimitz.
+            </p>
+          </Section>
         )}
       </div>
 
-      {/* Colors */}
-      <div className="flex flex-col gap-3">
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-          Colors
-        </label>
-        <ColorPicker
-          label="Primary"
-          value={params.primaryColor}
-          onChange={(v) => setParams({ primaryColor: v })}
-        />
-        <ColorPicker
-          label="Secondary"
-          value={params.secondaryColor}
-          onChange={(v) => setParams({ secondaryColor: v })}
-        />
-        <ColorPicker
-          label="Background"
-          value={params.backgroundColor}
-          onChange={(v) => setParams({ backgroundColor: v })}
-        />
+      {/* Save As - pinned below the scrolling controls */}
+      <div className="p-4 border-t border-[var(--border-color)] flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => setIsSaveDialogOpen(true)}
+          className="w-full px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium
+            hover:brightness-110 transition-all-smooth"
+        >
+          💾 Save As
+        </button>
+        {savedName && (
+          <p className="text-xs text-center text-[var(--text-muted)]" role="status">
+            Saved "{savedName}" to Presets
+          </p>
+        )}
       </div>
 
-      {/* Common Parameters */}
-      <div className="flex flex-col gap-3">
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-          Animation
-        </label>
-        <Slider
-          label="Speed"
-          value={params.speed}
-          onChange={(v) => setParams({ speed: v })}
-        />
-        <Slider
-          label="Scale"
-          value={params.scale}
-          onChange={(v) => setParams({ scale: v })}
-        />
-        <Slider
-          label="Intensity"
-          value={params.intensity}
-          onChange={(v) => setParams({ intensity: v })}
-          min={0}
-          max={1.5}
-        />
-      </div>
-
-      {/* Time-based specific parameters */}
-      {params.animationMode === 'time-based' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Time Animation
-          </label>
-          <Slider
-            label="Wave Frequency"
-            value={params.waveFrequency}
-            onChange={(v) => setParams({ waveFrequency: v })}
-            min={0.1}
-            max={5}
-          />
-          <Slider
-            label="Evolution Rate"
-            value={params.evolutionRate}
-            onChange={(v) => setParams({ evolutionRate: v })}
-            min={0.1}
-            max={2}
-          />
-        </div>
-      )}
-
-      {/* Effect-specific parameters */}
-      {params.effectType === 'metaballs' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Metaballs
-          </label>
-          <Slider
-            label="Blob Count"
-            value={params.blobCount || 5}
-            onChange={(v) => setParams({ blobCount: Math.round(v) })}
-            min={2}
-            max={10}
-            step={1}
-          />
-        </div>
-      )}
-
-      {params.effectType === 'particles' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Particles
-          </label>
-          <Slider
-            label="Particle Count"
-            value={(params.particleCount || 1000) / 100}
-            onChange={(v) => setParams({ particleCount: Math.round(v * 100) })}
-            min={1}
-            max={50}
-            step={1}
-          />
-        </div>
-      )}
-
-      {params.effectType === 'noise' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Noise
-          </label>
-          <Slider
-            label="Octaves"
-            value={params.noiseOctaves || 4}
-            onChange={(v) => setParams({ noiseOctaves: Math.round(v) })}
-            min={1}
-            max={8}
-            step={1}
-          />
-        </div>
-      )}
-
-      {params.effectType === 'kaleidoscope' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Kaleidoscope
-          </label>
-          <Slider
-            label="Segments"
-            value={params.kaleidoscopeSegments || 6}
-            onChange={(v) => setParams({ kaleidoscopeSegments: Math.round(v) })}
-            min={2}
-            max={16}
-            step={1}
-          />
-          <p className="text-xs text-[var(--text-muted)]">
-            {params.kaleidoscopeSegments || 6} symmetrical reflections
-          </p>
-        </div>
-      )}
-
-      {params.effectType === 'plasma' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Plasma
-          </label>
-          <Slider
-            label="Complexity"
-            value={params.plasmaComplexity || 5}
-            onChange={(v) => setParams({ plasmaComplexity: Math.round(v) })}
-            min={1}
-            max={8}
-            step={1}
-          />
-          <p className="text-xs text-[var(--text-muted)]">
-            {params.plasmaComplexity || 5} wave layers
-          </p>
-        </div>
-      )}
-
-      {params.effectType === 'voronoi' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Voronoi Cells
-          </label>
-          <Slider
-            label="Cell Count"
-            value={params.voronoiCells || 20}
-            onChange={(v) => setParams({ voronoiCells: Math.round(v) })}
-            min={5}
-            max={50}
-            step={1}
-          />
-          <Slider
-            label="Edge Width"
-            value={params.voronoiEdgeWidth || 0.02}
-            onChange={(v) => setParams({ voronoiEdgeWidth: v })}
-            min={0.001}
-            max={0.1}
-            step={0.001}
-          />
-          <p className="text-xs text-[var(--text-muted)]">
-            {params.voronoiCells || 20} organic cells
-          </p>
-        </div>
-      )}
-
-      {params.effectType === 'tunnel' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Tunnel
-          </label>
-          <Slider
-            label="Depth"
-            value={params.tunnelDepth || 10}
-            onChange={(v) => setParams({ tunnelDepth: v })}
-            min={1}
-            max={30}
-            step={0.5}
-          />
-          <Slider
-            label="Rings"
-            value={params.tunnelRings || 8}
-            onChange={(v) => setParams({ tunnelRings: Math.round(v) })}
-            min={2}
-            max={20}
-            step={1}
-          />
-          <p className="text-xs text-[var(--text-muted)]">
-            {params.tunnelRings || 8} tunnel rings
-          </p>
-        </div>
-      )}
-
-      {params.effectType === 'truchet' && (
-        <div className="flex flex-col gap-3">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Truchet Tiles
-          </label>
-          <Slider
-            label="Grid Size"
-            value={params.truchetGridSize || 8}
-            onChange={(v) => setParams({ truchetGridSize: Math.round(v) })}
-            min={3}
-            max={20}
-            step={1}
-          />
-          <Slider
-            label="Line Width"
-            value={params.truchetLineWidth || 0.08}
-            onChange={(v) => setParams({ truchetLineWidth: v })}
-            min={0.02}
-            max={0.2}
-            step={0.01}
-          />
-          <p className="text-xs text-[var(--text-muted)]">
-            {params.truchetGridSize || 8}×{params.truchetGridSize || 8} tile grid
-          </p>
-        </div>
+      {isSaveDialogOpen && (
+        <SavePresetDialog onSave={handleSavePreset} onClose={handleCloseSaveDialog} />
       )}
     </div>
   );

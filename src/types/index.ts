@@ -1,4 +1,4 @@
-export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel' | 'truchet';
+export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel' | 'truchet' | 'clouds';
 export type AnimationMode = 'time-based' | 'audio-reactive';
 export type FrequencyBand = 'bass' | 'mid' | 'treble' | 'full';
 export type AudioSource = 'microphone' | 'file';
@@ -39,6 +39,10 @@ export interface VisualizationParams {
   // Truchet params
   truchetGridSize?: number;
   truchetLineWidth?: number;
+  // Clouds params
+  cloudsDensity?: number;
+  cloudsSteps?: number;
+  cloudsColorMix?: number;
 }
 
 export interface Preset {
@@ -95,4 +99,7 @@ export const DEFAULT_PARAMS: VisualizationParams = {
   tunnelRings: 8,
   truchetGridSize: 8,
   truchetLineWidth: 0.08,
+  cloudsDensity: 0.5,
+  cloudsSteps: 100,
+  cloudsColorMix: 0,
 };

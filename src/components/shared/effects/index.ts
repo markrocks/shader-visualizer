@@ -6,3 +6,4 @@ export { PlasmaEffect } from './PlasmaEffect';
 export { VoronoiEffect } from './VoronoiEffect';
 export { TunnelEffect } from './TunnelEffect';
 export { TruchetEffect } from './TruchetEffect';
+export { CloudsEffect } from './CloudsEffect';
