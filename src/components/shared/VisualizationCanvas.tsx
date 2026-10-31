@@ -2,7 +2,8 @@ import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { OrthographicCamera } from '@react-three/drei';
 import type { VisualizationParams } from '../../types';
-import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, PlasmaEffect, VoronoiEffect, TunnelEffect, TruchetEffect, CloudsEffect } from './effects';
+import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, PlasmaEffect, VoronoiEffect, TunnelEffect, TruchetEffect, CloudsEffect, PortedShaderEffect } from './effects';
+import { PORTED_FRAGMENT_SHADERS } from '../../shaders/ported';
 
 interface VisualizationCanvasProps {
   params: VisualizationParams;
@@ -30,8 +31,13 @@ function Scene({ params }: { params: VisualizationParams }) {
         return <TruchetEffect params={params} />;
       case 'clouds':
         return <CloudsEffect params={params} />;
-      default:
+      default: {
+        const portedShader = PORTED_FRAGMENT_SHADERS[params.effectType];
+        if (portedShader) {
+          return <PortedShaderEffect key={params.effectType} params={params} fragmentShader={portedShader} />;
+        }
         return <MetaballsEffect params={params} />;
+      }
     }
   };
 

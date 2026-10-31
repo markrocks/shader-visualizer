@@ -1,4 +1,6 @@
-export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel' | 'truchet' | 'clouds';
+export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel' | 'truchet' | 'clouds'
+  | 'universe-within' | 'star-nest' | 'voronoi-distances' | 'warp-speed' | 'drive-home'
+  | 'main-sequence-star' | 'water-caustics' | 'plasma-globe' | 'blue' | 'parametrics';
 export type AnimationMode = 'time-based' | 'audio-reactive';
 export type FrequencyBand = 'bass' | 'mid' | 'treble' | 'full';
 export type AudioSource = 'microphone' | 'file';

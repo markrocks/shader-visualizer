@@ -7,3 +7,4 @@ export { VoronoiEffect } from './VoronoiEffect';
 export { TunnelEffect } from './TunnelEffect';
 export { TruchetEffect } from './TruchetEffect';
 export { CloudsEffect } from './CloudsEffect';
+export { PortedShaderEffect } from './PortedShaderEffect';

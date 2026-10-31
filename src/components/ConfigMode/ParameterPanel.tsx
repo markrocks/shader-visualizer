@@ -16,6 +16,16 @@ const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'tunnel', label: '🌀 Tunnel' },
   { value: 'truchet', label: '🔲 Truchet' },
   { value: 'clouds', label: '☁️ Protean Clouds' },
+  { value: 'universe-within', label: '🕸️ Universe Within' },
+  { value: 'star-nest', label: '🌌 Star Nest' },
+  { value: 'voronoi-distances', label: '🔶 Voronoi Distances' },
+  { value: 'warp-speed', label: '🚀 Warp Speed' },
+  { value: 'drive-home', label: '🚗 The Drive Home' },
+  { value: 'main-sequence-star', label: '☀️ Main Sequence Star' },
+  { value: 'water-caustics', label: '💧 Water Caustics' },
+  { value: 'plasma-globe', label: '⚡ Plasma Globe' },
+  { value: 'blue', label: '🧊 Blue' },
+  { value: 'parametrics', label: '➰ Parametrics' },
 ];
 
 const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
