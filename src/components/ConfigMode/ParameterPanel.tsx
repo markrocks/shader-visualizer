@@ -96,10 +96,11 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
 
 interface SectionProps {
   title: string;
+  indent?: boolean;
   children: React.ReactNode;
 }
 
-function Section({ title, children }: SectionProps) {
+function Section({ title, indent = true, children }: SectionProps) {
   const collapsed = useSettingsStore((state) => state.collapsedSections.includes(title));
   const toggleSection = useSettingsStore((state) => state.toggleSection);
 
@@ -115,7 +116,7 @@ function Section({ title, children }: SectionProps) {
         <span>{title}</span>
         <span className={`transition-transform ${collapsed ? '-rotate-90' : ''}`}>▾</span>
       </button>
-      {!collapsed && children}
+      {!collapsed && <div className={`flex flex-col gap-3 ${indent ? 'pl-[10px]' : ''}`}>{children}</div>}
     </div>
   );
 }
@@ -159,7 +160,7 @@ export function ParameterPanel() {
     <div className="flex flex-col h-full">
       <div className="flex-1 flex flex-col gap-5 p-4 overflow-y-auto">
         {/* Effect Type */}
-        <Section title="Effect Type">
+        <Section title="Effect Type" indent={false}>
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_OPTIONS.map((option) => (
               <button
@@ -179,7 +180,7 @@ export function ParameterPanel() {
         </Section>
 
         {/* Animation Mode */}
-        <Section title="Animation Mode">
+        <Section title="Animation Mode" indent={false}>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
