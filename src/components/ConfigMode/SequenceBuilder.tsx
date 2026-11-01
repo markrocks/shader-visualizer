@@ -1,9 +1,26 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { usePresetStore } from '../../stores/presetStore';
 import type { Sequence } from '../../types';
 import { EASINGS, TRANSITIONS, type TransitionChoice, type TransitionEasing } from '../../shaders/transitions';
 import { SequenceSlotEditor, SlotSummary } from './SequenceSlotEditor';
 import { hasOverrides, slotOverrides } from '../../utils/sequenceSlots';
+import { createSequenceBackup, downloadBackup, parseSequenceBackup, type RestoreSummary } from '../../utils/sequenceBackup';
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function describeRestore(summary: RestoreSummary): string {
+  if (!summary.sequencesAdded && !summary.sequencesCopied && !summary.presetsAdded) {
+    return `Nothing new to restore: ${plural(summary.sequencesUnchanged, 'sequence')} already up to date.`;
+  }
+  const parts = [];
+  if (summary.sequencesAdded) parts.push(`Restored ${plural(summary.sequencesAdded, 'sequence')}`);
+  if (summary.sequencesCopied) parts.push(`${plural(summary.sequencesCopied, 'changed sequence')} added as a copy`);
+  if (summary.sequencesUnchanged) parts.push(`${plural(summary.sequencesUnchanged, 'sequence')} already up to date`);
+  if (summary.presetsAdded) parts.push(`${plural(summary.presetsAdded, 'preset')} added`);
+  if (summary.missingPresets) parts.push(`${plural(summary.missingPresets, 'missing preset')} skipped`);
+  const text = parts.join(', ');
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
 
 interface SequenceBuilderProps {
   onPlaySequence: (sequence: Sequence) => void;
@@ -16,6 +33,8 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
   const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
   // Position in the selected sequence whose per-preset settings are open
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null);
+  const [backupMessage, setBackupMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const {
     presets,
@@ -27,8 +46,28 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
     removePresetFromSequence,
     reorderSequencePresets,
     updateSequenceSlot,
+    restoreSequenceBackup,
     getPreset,
   } = usePresetStore();
+
+  const handleBackup = useCallback(() => {
+    downloadBackup(createSequenceBackup(sequences, presets));
+    setBackupMessage({ text: `Backed up ${plural(sequences.length, 'sequence')}.`, error: false });
+  }, [sequences, presets]);
+
+  const handleRestoreFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear so choosing the same file again still triggers a change
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const backup = parseSequenceBackup(await file.text());
+      const summary = await restoreSequenceBackup(backup);
+      setBackupMessage({ text: describeRestore(summary), error: false });
+    } catch (error) {
+      setBackupMessage({ text: `Couldn't restore ${file.name}: ${(error as Error).message}`, error: true });
+    }
+  }, [restoreSequenceBackup]);
 
   const selectedSequence = selectedSequenceId
     ? sequences.find((s) => s.id === selectedSequenceId)
@@ -103,9 +142,57 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
-        Sequences
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+          Sequences
+        </h3>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={handleBackup}
+            disabled={sequences.length === 0}
+            title="Download every sequence, with its settings and presets, as a JSON file"
+            className="px-2 py-1 rounded text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)]
+              border border-[var(--border-color)] hover:border-[var(--accent-primary)]
+              disabled:opacity-50 disabled:cursor-not-allowed transition-all-smooth"
+          >
+            ⬇️ Back up
+          </button>
+          <button
+            type="button"
+            onClick={() => restoreInputRef.current?.click()}
+            title="Add the sequences from a backup file. Existing sequences are kept."
+            className="px-2 py-1 rounded text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)]
+              border border-[var(--border-color)] hover:border-[var(--accent-primary)] transition-all-smooth"
+          >
+            ⬆️ Restore
+          </button>
+          <input
+            ref={restoreInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={handleRestoreFile}
+            className="hidden"
+            aria-label="Restore sequences from a backup file"
+          />
+        </div>
+      </div>
+
+      {backupMessage && (
+        <div
+          role="status"
+          className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs border ${
+            backupMessage.error
+              ? 'bg-red-500/10 border-red-500/40 text-red-300'
+              : 'bg-green-500/10 border-green-500/40 text-green-300'
+          }`}
+        >
+          <span className="flex-1">{backupMessage.text}</span>
+          <button type="button" onClick={() => setBackupMessage(null)} aria-label="Dismiss" className="opacity-70 hover:opacity-100">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Create New Sequence */}
       <div className="flex gap-2">

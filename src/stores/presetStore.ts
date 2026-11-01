@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Preset, Sequence, SequenceSlotSettings, VisualizationParams } from '../types';
 import { alignedSlots } from '../utils/sequenceSlots';
+import { mergeSequenceBackup, type RestoreSummary, type SequenceBackup } from '../utils/sequenceBackup';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   savePresetsToFolder, 
@@ -31,6 +32,8 @@ interface PresetState {
   reorderSequencePresets: (sequenceId: string, fromIndex: number, toIndex: number) => Promise<void>;
   // Replaces the per-preset overrides for one position in a sequence
   updateSequenceSlot: (sequenceId: string, presetIndex: number, settings: SequenceSlotSettings) => Promise<void>;
+  // Adds a backup's sequences and presets without overwriting existing ones
+  restoreSequenceBackup: (backup: SequenceBackup) => Promise<RestoreSummary>;
   loadFromFolder: (handle: FileSystemDirectoryHandle) => Promise<void>;
   syncToFolder: () => Promise<void>;
   setPresets: (presets: Preset[]) => void;
@@ -201,6 +204,16 @@ export const usePresetStore = create<PresetState>()(
         });
         set({ sequences: newSequences, lastSyncError: null });
         await syncSequencesToFolder(newSequences);
+      },
+
+      restoreSequenceBackup: async (backup) => {
+        const { presets, sequences, summary } = mergeSequenceBackup(
+          { presets: get().presets, sequences: get().sequences },
+          backup
+        );
+        set({ presets, sequences, lastSyncError: null });
+        await Promise.all([syncPresetsToFolder(presets), syncSequencesToFolder(sequences)]);
+        return summary;
       },
 
       loadFromFolder: async (handle) => {
