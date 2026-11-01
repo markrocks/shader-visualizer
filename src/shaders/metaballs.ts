@@ -95,23 +95,23 @@ void main() {
     float radius = 0.15 + 0.1 * sin(evolutionTime * 0.7 + fi);
     
     // Add noise-based movement
-    float noiseX = snoise(vec2(fi * 10.0, evolutionTime * 0.5)) * 0.5;
-    float noiseY = snoise(vec2(fi * 10.0 + 100.0, evolutionTime * 0.5)) * 0.5;
+    float noiseX = snoise(vec2(fi * 10.0, evolutionTime * 0.5)) * uCtlNoiseWander;
+    float noiseY = snoise(vec2(fi * 10.0 + 100.0, evolutionTime * 0.5)) * uCtlNoiseWander;
     
     vec2 center = vec2(
-      sin(angle) * (0.5 + 0.3 * modulator) + noiseX,
-      cos(angle * 0.7) * (0.5 + 0.3 * modulator) + noiseY
+      sin(angle) * (uCtlOrbitRadius + 0.3 * modulator) + noiseX,
+      cos(angle * 0.7) * (uCtlOrbitRadius + 0.3 * modulator) + noiseY
     ) * uScale;
     
-    float blobSize = (0.3 + 0.2 * sin(evolutionTime + fi * 2.0)) * uIntensity;
+    float blobSize = (uCtlBlobSize + uCtlBlobPulse * sin(evolutionTime + fi * 2.0)) * uIntensity;
     blobSize *= (1.0 + modulator * 0.5);
     
     m += metaball(uv, center, blobSize);
   }
   
   // Create smooth threshold
-  float threshold = 1.0;
-  float edge = 0.1 * (1.0 + modulator * 0.5);
+  float threshold = uCtlThreshold;
+  float edge = uCtlEdgeSoftness * (1.0 + modulator * 0.5);
   float shape = smoothstep(threshold - edge, threshold + edge, m);
   
   // Color mixing based on metaball value
@@ -119,14 +119,14 @@ void main() {
   vec3 blobColor = mix(uPrimaryColor, uSecondaryColor, colorMix);
   
   // Add glow effect
-  float glow = m * 0.1 * uIntensity;
+  float glow = m * uCtlGlow * uIntensity;
   vec3 glowColor = mix(uPrimaryColor, uSecondaryColor, 0.5) * glow;
   
   // Final color
   vec3 finalColor = mix(uBackgroundColor + glowColor, blobColor, shape);
   
   // Add subtle vignette
-  float vignette = 1.0 - length(vUv - 0.5) * 0.5;
+  float vignette = 1.0 - length(vUv - 0.5) * uCtlVignette;
   finalColor *= vignette;
   
   gl_FragColor = vec4(finalColor, 1.0);

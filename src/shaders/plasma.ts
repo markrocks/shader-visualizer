@@ -60,8 +60,8 @@ void main() {
   plasma += sin((uv.x * uWaveFrequency * 2.0 + uv.y * uWaveFrequency * 1.5 + time * 0.7) * 1.2);
   
   // Circular waves
-  float cx = uv.x + 0.5 * sin(time * 0.3);
-  float cy = uv.y + 0.5 * cos(time * 0.4);
+  float cx = uv.x + uCtlCircleOrbit * sin(time * 0.3);
+  float cy = uv.y + uCtlCircleOrbit * cos(time * 0.4);
   plasma += sin(sqrt(cx * cx + cy * cy + 1.0) * uWaveFrequency * 4.0 - time);
   
   // Diagonal waves
@@ -72,7 +72,7 @@ void main() {
     if (i >= int(complexity)) break;
     float fi = float(i) + 1.0;
     float angle = time * 0.1 * fi;
-    vec2 offset = vec2(sin(angle), cos(angle)) * 0.5;
+    vec2 offset = vec2(sin(angle), cos(angle)) * uCtlLayerSpread;
     plasma += sin(length(uv - offset) * uWaveFrequency * fi * 2.0 - time * fi * 0.3) / fi;
   }
   
@@ -89,7 +89,7 @@ void main() {
   vec3 color2 = uSecondaryColor;
   
   // Use sin for smooth cyclic color transitions
-  float colorCycle = sin(colorValue * PI * 2.0) * 0.5 + 0.5;
+  float colorCycle = sin(colorValue * PI * uCtlColorCycles) * 0.5 + 0.5;
   vec3 baseColor = mix(color1, color2, colorCycle);
   
   // Add brightness variation based on plasma value
@@ -97,12 +97,12 @@ void main() {
   vec3 finalColor = baseColor * (0.5 + brightness * uIntensity);
   
   // Add glow at peaks
-  float glow = smoothstep(0.4, 0.8, colorValue) * uIntensity * 0.5;
+  float glow = smoothstep(0.4, 0.8, colorValue) * uIntensity * uCtlGlow;
   finalColor += glow * (color1 + color2) * 0.3;
   
   // Slight background tint at valleys
   float valley = 1.0 - smoothstep(0.0, 0.3, colorValue);
-  finalColor = mix(finalColor, uBackgroundColor + finalColor * 0.3, valley * 0.3);
+  finalColor = mix(finalColor, uBackgroundColor + finalColor * 0.3, valley * uCtlValleyTint);
   
   gl_FragColor = vec4(finalColor, 1.0);
 }

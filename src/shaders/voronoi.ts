@@ -80,7 +80,7 @@ void main() {
       
       // Random point within cell, animated
       vec2 point = random2(cellId);
-      point = 0.5 + 0.4 * sin(time * uWaveFrequency + TAU * point);
+      point = 0.5 + uCtlJitter * sin(time * uWaveFrequency + TAU * point);
       point *= (1.0 + modulator * 0.3);
       
       vec2 diff = neighbor + point - fuv;
@@ -104,7 +104,7 @@ void main() {
   
   // Cell color based on cell ID
   float hue = minCellId + time * 0.1;
-  float cellBrightness = 0.5 + 0.5 * sin(minCellId * TAU + time);
+  float cellBrightness = 0.5 + uCtlBrightnessPulse * sin(minCellId * TAU + time);
   cellBrightness *= uIntensity;
   cellBrightness *= (1.0 + modulator * 0.3);
   
@@ -113,7 +113,7 @@ void main() {
   cellColor = mix(cellColor, uBackgroundColor, 1.0 - cellBrightness);
   
   // Edge color (darker or use background)
-  vec3 edgeColor = uBackgroundColor * 0.3;
+  vec3 edgeColor = uBackgroundColor * uCtlEdgeBrightness;
   
   // Final color
   vec3 finalColor = mix(edgeColor, cellColor, edgeFactor);
@@ -121,7 +121,7 @@ void main() {
   // Add subtle glow based on distance to center of cell
   float centerGlow = 1.0 - minDist * 2.0;
   centerGlow = max(0.0, centerGlow);
-  finalColor += centerGlow * uPrimaryColor * uIntensity * 0.3;
+  finalColor += centerGlow * uPrimaryColor * uIntensity * uCtlCellGlow;
   
   gl_FragColor = vec4(finalColor, 1.0);
 }

@@ -12,7 +12,6 @@ import { makePortedFragmentShader } from './shadertoyPort';
 
 export const waterCausticsFragmentShader = makePortedFragmentShader(`
 #define TAU 6.28318530718
-#define MAX_ITER 5
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   float time = iTime * .5+23.0;
@@ -22,17 +21,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec2 p = mod(uv*TAU, TAU)-250.0;
   vec2 i = vec2(p);
   float c = 1.0;
-  float inten = .005;
+  float inten = uCtlLineIntensity;
 
-  for (int n = 0; n < MAX_ITER; n++) {
+  for (int n = 0; n < 10; n++) {
+    if (float(n) >= uCtlIterations) break;
     float t = time * (1.0 - (3.5 / float(n+1)));
     i = p + vec2(cos(t - i.x) + sin(t + i.y), sin(t - i.y) + cos(t + i.x));
     c += 1.0/length(vec2(p.x / (sin(i.x+t)/inten),p.y / (cos(i.y+t)/inten)));
   }
-  c /= float(MAX_ITER);
-  c = 1.17-pow(c, 1.4);
-  vec3 colour = vec3(pow(abs(c), 8.0));
-  colour = clamp(colour + vec3(0.0, 0.35, 0.5), 0.0, 1.0);
+  c /= floor(uCtlIterations + 0.5);
+  c = 1.17-pow(c, uCtlContrast);
+  vec3 colour = vec3(pow(abs(c), uCtlSharpness));
+  colour = clamp(colour + uCtlWaterColor, 0.0, 1.0);
 
   fragColor = vec4(colour, 1.0);
 }

@@ -1,14 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { QualityLevel } from '../shaders/performance';
 
 interface SettingsState {
   storageFolderName: string | null;
   directoryHandle: FileSystemDirectoryHandle | null;
   isSettingsOpen: boolean;
   collapsedSections: string[];
+  // Rendering performance options
+  quality: QualityLevel;
+  bloom: boolean;
+  showPerformance: boolean;
   setDirectoryHandle: (handle: FileSystemDirectoryHandle | null, name: string | null) => void;
   setIsSettingsOpen: (open: boolean) => void;
   toggleSection: (title: string) => void;
+  setQuality: (quality: QualityLevel) => void;
+  setBloom: (bloom: boolean) => void;
+  setShowPerformance: (show: boolean) => void;
   clearStorage: () => void;
 }
 
@@ -19,6 +27,9 @@ export const useSettingsStore = create<SettingsState>()(
       directoryHandle: null,
       isSettingsOpen: false,
       collapsedSections: [],
+      quality: 'auto',
+      bloom: true,
+      showPerformance: true,
       
       setDirectoryHandle: (handle, name) => set({ 
         directoryHandle: handle,
@@ -33,6 +44,10 @@ export const useSettingsStore = create<SettingsState>()(
           : [...state.collapsedSections, title],
       })),
       
+      setQuality: (quality) => set({ quality }),
+      setBloom: (bloom) => set({ bloom }),
+      setShowPerformance: (showPerformance) => set({ showPerformance }),
+      
       clearStorage: () => set({ 
         directoryHandle: null, 
         storageFolderName: null 
@@ -43,6 +58,9 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({ 
         storageFolderName: state.storageFolderName,
         collapsedSections: state.collapsedSections,
+        quality: state.quality,
+        bloom: state.bloom,
+        showPerformance: state.showPerformance,
       }),
     }
   )

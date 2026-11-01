@@ -1,9 +1,14 @@
-import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef, useMemo, useContext } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { particlesVertexShader, particlesFragmentShader } from '../../../shaders';
+import { withControlUniforms, createControlUniforms, updateControlUniforms } from '../../../shaders/controls';
 import type { VisualizationParams } from '../../../types';
 import { useAudioStore } from '../../../stores/audioStore';
+import { RenderScaleContext } from '../renderScaleContext';
+
+const vertexShader = withControlUniforms('particles', particlesVertexShader);
+const fragmentShader = withControlUniforms('particles', particlesFragmentShader);
 
 interface ParticlesEffectProps {
   params: VisualizationParams;
@@ -12,7 +17,10 @@ interface ParticlesEffectProps {
 export function ParticlesEffect({ params }: ParticlesEffectProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const audioData = useAudioStore((state) => state.audioData);
+  const viewport = useThree((state) => state.viewport);
+  const renderScale = useContext(RenderScaleContext);
+  // Particle positions span about ±2.5 units; fit that to the screen
+  const spread = Math.min(viewport.width, viewport.height) / 5;
 
   const { geometry, uniforms } = useMemo(() => {
     const count = params.particleCount || 1000;
@@ -50,6 +58,8 @@ export function ParticlesEffect({ params }: ParticlesEffectProps) {
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
       uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
       uMirrorSegments: { value: params.mirrorSegments || 4 },
+      uPixelRatio: { value: 1 },
+      ...createControlUniforms('particles', params),
     };
 
     return { geometry: geo, uniforms: unis };
@@ -57,9 +67,13 @@ export function ParticlesEffect({ params }: ParticlesEffectProps) {
 
   useFrame((state) => {
     if (materialRef.current) {
+      // Read in the frame loop, not via a hook, so audio updates don't re-render
+      const audioData = useAudioStore.getState().audioData;
+      materialRef.current.uniforms.uPixelRatio.value = state.gl.getPixelRatio() * renderScale;
+      updateControlUniforms(materialRef.current.uniforms, 'particles', params);
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uPrimaryColor.value = new THREE.Color(params.primaryColor);
-      materialRef.current.uniforms.uSecondaryColor.value = new THREE.Color(params.secondaryColor);
+      materialRef.current.uniforms.uPrimaryColor.value.set(params.primaryColor);
+      materialRef.current.uniforms.uSecondaryColor.value.set(params.secondaryColor);
       materialRef.current.uniforms.uSpeed.value = params.speed;
       materialRef.current.uniforms.uScale.value = params.scale;
       materialRef.current.uniforms.uIntensity.value = params.intensity;
@@ -77,11 +91,11 @@ export function ParticlesEffect({ params }: ParticlesEffectProps) {
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
+    <points ref={pointsRef} geometry={geometry} scale={[spread, spread, 1]}>
       <shaderMaterial
         ref={materialRef}
-        vertexShader={particlesVertexShader}
-        fragmentShader={particlesFragmentShader}
+        vertexShader={vertexShader}
+        fragmentShader={fragmentShader}
         uniforms={uniforms}
         transparent
         depthWrite={false}

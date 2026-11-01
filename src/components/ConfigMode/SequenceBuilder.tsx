@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import { usePresetStore } from '../../stores/presetStore';
 import type { Sequence } from '../../types';
+import { EASINGS, TRANSITIONS, type TransitionChoice, type TransitionEasing } from '../../shaders/transitions';
+import { SequenceSlotEditor, SlotSummary } from './SequenceSlotEditor';
+import { hasOverrides, slotOverrides } from '../../utils/sequenceSlots';
 
 interface SequenceBuilderProps {
   onPlaySequence: (sequence: Sequence) => void;
@@ -11,6 +14,8 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
   const [newSequenceName, setNewSequenceName] = useState('');
   const [selectedSequenceId, setSelectedSequenceId] = useState<string | null>(null);
   const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
+  // Position in the selected sequence whose per-preset settings are open
+  const [expandedSlot, setExpandedSlot] = useState<number | null>(null);
 
   const {
     presets,
@@ -21,6 +26,7 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
     addPresetToSequence,
     removePresetFromSequence,
     reorderSequencePresets,
+    updateSequenceSlot,
     getPreset,
   } = usePresetStore();
 
@@ -43,6 +49,7 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
 
   const handleDragStart = useCallback((index: number) => {
     setDraggedPresetIndex(index);
+    setExpandedSlot(null);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
@@ -64,12 +71,13 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
   }, [selectedSequenceId, addPresetToSequence]);
 
   const handleSelectSequence = useCallback((id: string) => {
+    if (id !== selectedSequenceId) setExpandedSlot(null);
     setSelectedSequenceId(id);
     const sequence = sequences.find((s) => s.id === id);
     if (sequence && onSelectSequence) {
       onSelectSequence(sequence);
     }
-  }, [sequences, onSelectSequence]);
+  }, [sequences, onSelectSequence, selectedSequenceId]);
 
   const handlePlaySequence = useCallback((sequence: Sequence, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,6 +97,7 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
   const handleRemovePresetFromSequence = useCallback((index: number) => {
     if (selectedSequenceId) {
       removePresetFromSequence(selectedSequenceId, index);
+      setExpandedSlot(null);
     }
   }, [selectedSequenceId, removePresetFromSequence]);
 
@@ -181,6 +190,10 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
             Editing: {selectedSequence.name}
           </h4>
 
+          <p className="text-xs text-[var(--text-muted)]">
+            These settings apply to every preset. Use ⚙️ on a preset below to give it its own timing or transition.
+          </p>
+
           {/* Timing Settings */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
@@ -220,6 +233,51 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
             </div>
           </div>
 
+          {/* Transition Style */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="transition-style" className="text-xs text-[var(--text-muted)]">Transition Style</label>
+            <select
+              id="transition-style"
+              value={selectedSequence.transitionType ?? 'crossfade'}
+              onChange={(e) =>
+                updateSequence(selectedSequence.id, { transitionType: e.target.value as TransitionChoice })
+              }
+              className="px-2 py-1.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)]
+                text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-primary)]"
+            >
+              {TRANSITIONS.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+              <option value="random">🎲 Random</option>
+            </select>
+            <p className="text-xs text-[var(--text-muted)]">
+              {selectedSequence.transitionType === 'random'
+                ? 'Picks a different transition style for each change.'
+                : TRANSITIONS.find((t) => t.id === (selectedSequence.transitionType ?? 'crossfade'))?.description}
+            </p>
+          </div>
+
+          {/* Transition Easing */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="transition-easing" className="text-xs text-[var(--text-muted)]">Transition Easing</label>
+            <select
+              id="transition-easing"
+              value={selectedSequence.transitionEasing ?? 'smooth'}
+              onChange={(e) =>
+                updateSequence(selectedSequence.id, { transitionEasing: e.target.value as TransitionEasing })
+              }
+              className="px-2 py-1.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)]
+                text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-primary)]"
+            >
+              {EASINGS.map((easing) => (
+                <option key={easing.id} value={easing.id}>{easing.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-[var(--text-muted)]">
+              {EASINGS.find((e) => e.id === (selectedSequence.transitionEasing ?? 'smooth'))?.description}
+            </p>
+          </div>
+
           {/* Loop Toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -246,29 +304,57 @@ export function SequenceBuilder({ onPlaySequence, onSelectSequence }: SequenceBu
                 {selectedSequence.presetIds.map((presetId, index) => {
                   const preset = getPreset(presetId);
                   if (!preset) return null;
+                  const count = selectedSequence.presetIds.length;
+                  const expanded = expandedSlot === index;
+                  const overridden = hasOverrides(slotOverrides(selectedSequence, index));
+                  const nextPreset = getPreset(selectedSequence.presetIds[(index + 1) % count]);
                   return (
-                    <div
-                      key={`${presetId}-${index}`}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-2 p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)]
-                        cursor-move hover:border-[var(--accent-primary)]/50 transition-all-smooth ${
-                          draggedPresetIndex === index ? 'opacity-50' : ''
-                        }`}
-                    >
-                      <span className="text-[var(--text-muted)] text-xs w-5">{index + 1}.</span>
-                      <span className="flex-1 text-sm text-[var(--text-primary)] truncate">
-                        {preset.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePresetFromSequence(index)}
-                        className="p-1 rounded hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400"
+                    <div key={`${presetId}-${index}`} className="flex flex-col gap-1">
+                      <div
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center gap-2 p-2 rounded bg-[var(--bg-secondary)] border
+                          cursor-move hover:border-[var(--accent-primary)]/50 transition-all-smooth ${
+                            expanded ? 'border-[var(--accent-primary)]' : 'border-[var(--border-color)]'
+                          } ${draggedPresetIndex === index ? 'opacity-50' : ''}`}
                       >
-                        ✕
-                      </button>
+                        <span className="text-[var(--text-muted)] text-xs w-5">{index + 1}.</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-[var(--text-primary)] truncate">{preset.name}</div>
+                          <SlotSummary sequence={selectedSequence} index={index} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedSlot(expanded ? null : index)}
+                          aria-expanded={expanded}
+                          title="Timing and transition for this preset"
+                          className={`relative p-1 rounded hover:bg-[var(--accent-primary)]/20 transition-all-smooth ${
+                            expanded ? 'bg-[var(--accent-primary)]/20' : ''
+                          }`}
+                        >
+                          ⚙️
+                          {overridden && (
+                            <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePresetFromSequence(index)}
+                          className="p-1 rounded hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {expanded && (
+                        <SequenceSlotEditor
+                          sequence={selectedSequence}
+                          index={index}
+                          nextPresetName={nextPreset?.name ?? null}
+                          onChange={(settings) => updateSequenceSlot(selectedSequence.id, index, settings)}
+                        />
+                      )}
                     </div>
                   );
                 })}

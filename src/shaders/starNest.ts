@@ -4,20 +4,21 @@ import { makePortedFragmentShader } from './shadertoyPort';
 // License: MIT
 
 export const starNestFragmentShader = makePortedFragmentShader(`
-#define iterations 17
-#define formuparam 0.53
+// Originally compile-time constants; now driven by the Shader Effects controls
+#define iterations int(uCtlIterations + 0.5)
+#define formuparam uCtlFormuparam
 
-#define volsteps 20
-#define stepsize 0.1
+#define volsteps int(uCtlVolsteps + 0.5)
+#define stepsize uCtlStepsize
 
-#define zoom   0.800
-#define tile   0.850
-#define speed  0.010
+#define zoom   uCtlZoom
+#define tile   uCtlTile
+#define speed  uCtlSpeed
 
-#define brightness 0.0015
-#define darkmatter 0.300
-#define distfading 0.730
-#define saturation 0.850
+#define brightness uCtlBrightness
+#define darkmatter uCtlDarkmatter
+#define distfading uCtlDistfading
+#define saturation uCtlSaturation
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   //get coords and direction
@@ -41,11 +42,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   //volumetric rendering
   float s=0.1,fade=1.;
   vec3 v=vec3(0.);
-  for (int r=0; r<volsteps; r++) {
+  for (int r=0; r<30; r++) {
+    if (r >= volsteps) break;
     vec3 p=from+s*dir*.5;
     p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
     float pa,a=pa=0.;
-    for (int i=0; i<iterations; i++) {
+    for (int i=0; i<30; i++) {
+      if (i >= iterations) break;
       p=abs(p)/dot(p,p)-formuparam; // the magic formula
       a+=abs(length(p)-pa); // absolute sum of average change
       pa=length(p);

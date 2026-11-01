@@ -5,6 +5,10 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import type { EffectType, FrequencyBand } from '../../types';
 import { AudioAnalyzer } from '../shared/AudioAnalyzer';
 import { SavePresetDialog } from './SavePresetDialog';
+import { ShaderControls } from './ShaderControls';
+import { Slider, ColorPicker, InfoTip } from './inputs';
+import { EffectGuideDialog } from './EffectGuideDialog';
+import { EFFECT_INFO, SHARED_CONTROL_INFO } from '../../shaders/effectInfo';
 
 const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'metaballs', label: '🫧 Metaballs' },
@@ -26,6 +30,7 @@ const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'plasma-globe', label: '⚡ Plasma Globe' },
   { value: 'blue', label: '🧊 Blue' },
   { value: 'parametrics', label: '➰ Parametrics' },
+  { value: 'liquid-carbon', label: '🖤 Liquid Carbon' },
 ];
 
 const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
@@ -35,82 +40,20 @@ const FREQUENCY_BANDS: { value: FrequencyBand; label: string }[] = [
   { value: 'full', label: 'Full' },
 ];
 
-interface SliderProps {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-}
-
-function Slider({ label, value, onChange, min = 0, max = 2, step = 0.01 }: SliderProps) {
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    onChange(parseFloat(e.target.value));
-  }, [onChange]);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-[var(--text-muted)]">{label}</span>
-        <span className="text-[var(--text-secondary)]">{value.toFixed(2)}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={handleChange}
-        onMouseDown={(e) => e.stopPropagation()}
-        className="w-full h-1 rounded-full appearance-none cursor-pointer bg-[var(--bg-tertiary)]
-          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent-primary)]
-          [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-all
-          [&::-webkit-slider-thumb]:hover:scale-125"
-      />
-    </div>
-  );
-}
-
-interface ColorPickerProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}
-
-function ColorPicker({ label, value, onChange }: ColorPickerProps) {
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    onChange(e.target.value);
-  }, [onChange]);
-
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-[var(--text-muted)] flex-1">{label}</span>
-      <div className="relative">
-        <input
-          type="color"
-          value={value}
-          onChange={handleChange}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="w-8 h-8 rounded-lg cursor-pointer border-2 border-[var(--border-color)]
-            appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-0
-            [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-none"
-        />
-      </div>
-    </div>
-  );
-}
-
 interface SectionProps {
   title: string;
   indent?: boolean;
+  // Overrides the heading's default muted text color
+  headingColorClassName?: string;
   children: React.ReactNode;
 }
 
-function Section({ title, indent = true, children }: SectionProps) {
+function Section({
+  title,
+  indent = true,
+  headingColorClassName = 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+  children,
+}: SectionProps) {
   const collapsed = useSettingsStore((state) => state.collapsedSections.includes(title));
   const toggleSection = useSettingsStore((state) => state.toggleSection);
 
@@ -120,8 +63,8 @@ function Section({ title, indent = true, children }: SectionProps) {
         type="button"
         onClick={() => toggleSection(title)}
         aria-expanded={!collapsed}
-        className="flex items-center justify-between text-sm font-bold uppercase tracking-wider
-          text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+        className={`flex items-center justify-between text-sm font-bold uppercase tracking-wider
+          ${headingColorClassName} transition-colors`}
       >
         <span>{title}</span>
         <span className={`transition-transform ${collapsed ? '-rotate-90' : ''}`}>▾</span>
@@ -136,6 +79,12 @@ export function ParameterPanel() {
   const addPreset = usePresetStore((state) => state.addPreset);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
+  const effectInfo = EFFECT_INFO[params.effectType];
+  const effectLabel = EFFECT_OPTIONS.find((o) => o.value === params.effectType)?.label ?? params.effectType;
+  // Description for a control in the current effect's own section
+  const effectHelp = (label: string) => effectInfo.effectControls?.find((c) => c.label === label)?.description;
 
   // Hide the "Saved" confirmation after a moment
   useEffect(() => {
@@ -176,6 +125,7 @@ export function ParameterPanel() {
               <button
                 key={option.value}
                 type="button"
+                title={EFFECT_INFO[option.value].summary}
                 onClick={() => handleEffectChange(option.value)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
                   params.effectType === option.value
@@ -186,6 +136,21 @@ export function ParameterPanel() {
                 {option.label}
               </button>
             ))}
+          </div>
+
+          {/* About the selected effect */}
+          <div className="flex flex-col gap-2 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+            <p className="text-xs text-[var(--text-secondary)]">{effectInfo.summary}</p>
+            {effectInfo.credit && (
+              <p className="text-[11px] text-[var(--text-muted)]">By {effectInfo.credit.author}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="self-start text-xs font-medium text-[var(--accent-primary)] hover:brightness-125 transition-all"
+            >
+              ⓘ Effect guide
+            </button>
           </div>
         </Section>
 
@@ -246,6 +211,7 @@ export function ParameterPanel() {
 
             <Slider
               label="Audio Sensitivity"
+              description={SHARED_CONTROL_INFO.audioSensitivity}
               value={params.audioSensitivity}
               onChange={(v) => setParams({ audioSensitivity: v })}
               min={0}
@@ -254,6 +220,7 @@ export function ParameterPanel() {
 
             <Slider
               label="Smoothing"
+              description={SHARED_CONTROL_INFO.smoothing}
               value={params.smoothing}
               onChange={(v) => setParams({ smoothing: v })}
               min={0}
@@ -264,7 +231,7 @@ export function ParameterPanel() {
 
         {/* Post Effects */}
         <Section title="Post Effects">
-          <label className="flex items-center gap-3 cursor-pointer group">
+          <label className="relative flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
               checked={params.mirrorQuadrants}
@@ -283,11 +250,13 @@ export function ParameterPanel() {
             <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
               🪞 Mirror Segments
             </span>
+            <InfoTip label="Mirror Segments" text={SHARED_CONTROL_INFO.mirror} />
           </label>
           {params.mirrorQuadrants && (
             <>
               <Slider
                 label="Segments"
+                description={SHARED_CONTROL_INFO.mirrorSegments}
                 value={params.mirrorSegments || 4}
                 onChange={(v) => setParams({ mirrorSegments: Math.round(v) })}
                 min={2}
@@ -305,16 +274,19 @@ export function ParameterPanel() {
         <Section title="Colors">
           <ColorPicker
             label="Primary"
+            description={SHARED_CONTROL_INFO.primaryColor}
             value={params.primaryColor}
             onChange={(v) => setParams({ primaryColor: v })}
           />
           <ColorPicker
             label="Secondary"
+            description={SHARED_CONTROL_INFO.secondaryColor}
             value={params.secondaryColor}
             onChange={(v) => setParams({ secondaryColor: v })}
           />
           <ColorPicker
             label="Background"
+            description={SHARED_CONTROL_INFO.backgroundColor}
             value={params.backgroundColor}
             onChange={(v) => setParams({ backgroundColor: v })}
           />
@@ -324,16 +296,19 @@ export function ParameterPanel() {
         <Section title="Animation">
           <Slider
             label="Speed"
+            description={SHARED_CONTROL_INFO.speed}
             value={params.speed}
             onChange={(v) => setParams({ speed: v })}
           />
           <Slider
             label="Scale"
+            description={SHARED_CONTROL_INFO.scale}
             value={params.scale}
             onChange={(v) => setParams({ scale: v })}
           />
           <Slider
             label="Intensity"
+            description={SHARED_CONTROL_INFO.intensity}
             value={params.intensity}
             onChange={(v) => setParams({ intensity: v })}
             min={0}
@@ -346,6 +321,7 @@ export function ParameterPanel() {
           <Section title="Time Animation">
             <Slider
               label="Wave Frequency"
+              description={SHARED_CONTROL_INFO.waveFrequency}
               value={params.waveFrequency}
               onChange={(v) => setParams({ waveFrequency: v })}
               min={0.1}
@@ -353,6 +329,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Evolution Rate"
+              description={SHARED_CONTROL_INFO.evolutionRate}
               value={params.evolutionRate}
               onChange={(v) => setParams({ evolutionRate: v })}
               min={0.1}
@@ -366,6 +343,7 @@ export function ParameterPanel() {
           <Section title="Metaballs">
             <Slider
               label="Blob Count"
+              description={effectHelp('Blob Count')}
               value={params.blobCount || 5}
               onChange={(v) => setParams({ blobCount: Math.round(v) })}
               min={2}
@@ -379,6 +357,7 @@ export function ParameterPanel() {
           <Section title="Particles">
             <Slider
               label="Particle Count"
+              description={effectHelp('Particle Count')}
               value={(params.particleCount || 1000) / 100}
               onChange={(v) => setParams({ particleCount: Math.round(v * 100) })}
               min={1}
@@ -392,6 +371,7 @@ export function ParameterPanel() {
           <Section title="Noise">
             <Slider
               label="Octaves"
+              description={effectHelp('Octaves')}
               value={params.noiseOctaves || 4}
               onChange={(v) => setParams({ noiseOctaves: Math.round(v) })}
               min={1}
@@ -405,6 +385,7 @@ export function ParameterPanel() {
           <Section title="Kaleidoscope">
             <Slider
               label="Segments"
+              description={effectHelp('Segments')}
               value={params.kaleidoscopeSegments || 6}
               onChange={(v) => setParams({ kaleidoscopeSegments: Math.round(v) })}
               min={2}
@@ -421,6 +402,7 @@ export function ParameterPanel() {
           <Section title="Plasma">
             <Slider
               label="Complexity"
+              description={effectHelp('Complexity')}
               value={params.plasmaComplexity || 5}
               onChange={(v) => setParams({ plasmaComplexity: Math.round(v) })}
               min={1}
@@ -437,6 +419,7 @@ export function ParameterPanel() {
           <Section title="Voronoi Cells">
             <Slider
               label="Cell Count"
+              description={effectHelp('Cell Count')}
               value={params.voronoiCells || 20}
               onChange={(v) => setParams({ voronoiCells: Math.round(v) })}
               min={5}
@@ -445,6 +428,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Edge Width"
+              description={effectHelp('Edge Width')}
               value={params.voronoiEdgeWidth || 0.02}
               onChange={(v) => setParams({ voronoiEdgeWidth: v })}
               min={0.001}
@@ -461,6 +445,7 @@ export function ParameterPanel() {
           <Section title="Tunnel">
             <Slider
               label="Depth"
+              description={effectHelp('Depth')}
               value={params.tunnelDepth || 10}
               onChange={(v) => setParams({ tunnelDepth: v })}
               min={1}
@@ -469,6 +454,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Rings"
+              description={effectHelp('Rings')}
               value={params.tunnelRings || 8}
               onChange={(v) => setParams({ tunnelRings: Math.round(v) })}
               min={2}
@@ -485,6 +471,7 @@ export function ParameterPanel() {
           <Section title="Truchet Tiles">
             <Slider
               label="Grid Size"
+              description={effectHelp('Grid Size')}
               value={params.truchetGridSize || 8}
               onChange={(v) => setParams({ truchetGridSize: Math.round(v) })}
               min={3}
@@ -493,6 +480,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Line Width"
+              description={effectHelp('Line Width')}
               value={params.truchetLineWidth || 0.08}
               onChange={(v) => setParams({ truchetLineWidth: v })}
               min={0.02}
@@ -509,6 +497,7 @@ export function ParameterPanel() {
           <Section title="Protean Clouds">
             <Slider
               label="Density"
+              description={effectHelp('Density')}
               value={params.cloudsDensity ?? 0.5}
               onChange={(v) => setParams({ cloudsDensity: v })}
               min={0}
@@ -517,6 +506,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Theme Colors"
+              description={effectHelp('Theme Colors')}
               value={params.cloudsColorMix ?? 0}
               onChange={(v) => setParams({ cloudsColorMix: v })}
               min={0}
@@ -525,6 +515,7 @@ export function ParameterPanel() {
             />
             <Slider
               label="Quality"
+              description={effectHelp('Quality')}
               value={params.cloudsSteps || 100}
               onChange={(v) => setParams({ cloudsSteps: Math.round(v) })}
               min={40}
@@ -536,6 +527,18 @@ export function ParameterPanel() {
             </p>
           </Section>
         )}
+
+        {/* Custom controls for the current shader */}
+        <Section title="Shader Effects" headingColorClassName="text-blue-400 hover:text-blue-300">
+          <button
+            type="button"
+            onClick={() => setIsGuideOpen(true)}
+            className="self-start text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            ⓘ What do these controls do?
+          </button>
+          <ShaderControls />
+        </Section>
       </div>
 
       {/* Save As - pinned below the scrolling controls */}
@@ -554,6 +557,10 @@ export function ParameterPanel() {
           </p>
         )}
       </div>
+
+      {isGuideOpen && (
+        <EffectGuideDialog effect={params.effectType} label={effectLabel} onClose={() => setIsGuideOpen(false)} />
+      )}
 
       {isSaveDialogOpen && (
         <SavePresetDialog onSave={handleSavePreset} onClose={handleCloseSaveDialog} />

@@ -2,8 +2,11 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { cloudsVertexShader, cloudsFragmentShader } from '../../../shaders/clouds';
+import { withControlUniforms, createControlUniforms, updateControlUniforms } from '../../../shaders/controls';
 import type { VisualizationParams } from '../../../types';
 import { useAudioStore } from '../../../stores/audioStore';
+
+const fragmentShader = withControlUniforms('clouds', cloudsFragmentShader);
 
 interface CloudsEffectProps {
   params: VisualizationParams;
@@ -13,7 +16,6 @@ export function CloudsEffect({ params }: CloudsEffectProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { size, viewport } = useThree();
-  const audioData = useAudioStore((state) => state.audioData);
 
   const uniforms = useMemo(
     () => ({
@@ -34,17 +36,22 @@ export function CloudsEffect({ params }: CloudsEffectProps) {
       uAnimationMode: { value: params.animationMode === 'audio-reactive' ? 1 : 0 },
       uMirrorQuadrants: { value: params.mirrorQuadrants ? 1 : 0 },
       uMirrorSegments: { value: params.mirrorSegments || 4 },
+      ...createControlUniforms('clouds', params),
     }),
     []
   );
 
   useFrame((state) => {
     if (materialRef.current) {
+      // Read in the frame loop, not via a hook, so audio updates don't re-render
+      const audioData = useAudioStore.getState().audioData;
+      updateControlUniforms(materialRef.current.uniforms, 'clouds', params);
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uResolution.value = [size.width, size.height];
-      materialRef.current.uniforms.uPrimaryColor.value = new THREE.Color(params.primaryColor);
-      materialRef.current.uniforms.uSecondaryColor.value = new THREE.Color(params.secondaryColor);
-      materialRef.current.uniforms.uBackgroundColor.value = new THREE.Color(params.backgroundColor);
+      materialRef.current.uniforms.uResolution.value[0] = size.width;
+      materialRef.current.uniforms.uResolution.value[1] = size.height;
+      materialRef.current.uniforms.uPrimaryColor.value.set(params.primaryColor);
+      materialRef.current.uniforms.uSecondaryColor.value.set(params.secondaryColor);
+      materialRef.current.uniforms.uBackgroundColor.value.set(params.backgroundColor);
       materialRef.current.uniforms.uSpeed.value = params.speed;
       materialRef.current.uniforms.uScale.value = params.scale;
       materialRef.current.uniforms.uIntensity.value = params.intensity;
@@ -72,7 +79,7 @@ export function CloudsEffect({ params }: CloudsEffectProps) {
       <shaderMaterial
         ref={materialRef}
         vertexShader={cloudsVertexShader}
-        fragmentShader={cloudsFragmentShader}
+        fragmentShader={fragmentShader}
         uniforms={uniforms}
       />
     </mesh>

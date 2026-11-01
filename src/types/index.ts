@@ -1,6 +1,8 @@
+import type { TransitionChoice, TransitionEasing } from '../shaders/transitions';
+
 export type EffectType = 'metaballs' | 'particles' | 'noise' | 'kaleidoscope' | 'plasma' | 'voronoi' | 'tunnel' | 'truchet' | 'clouds'
   | 'universe-within' | 'star-nest' | 'voronoi-distances' | 'warp-speed' | 'drive-home'
-  | 'main-sequence-star' | 'water-caustics' | 'plasma-globe' | 'blue' | 'parametrics';
+  | 'main-sequence-star' | 'water-caustics' | 'plasma-globe' | 'blue' | 'parametrics' | 'liquid-carbon';
 export type AnimationMode = 'time-based' | 'audio-reactive';
 export type FrequencyBand = 'bass' | 'mid' | 'treble' | 'full';
 export type AudioSource = 'microphone' | 'file';
@@ -45,6 +47,8 @@ export interface VisualizationParams {
   cloudsDensity?: number;
   cloudsSteps?: number;
   cloudsColorMix?: number;
+  // Per-effect custom shader controls (see shaders/controls.ts); missing values use defaults
+  shaderControls?: Partial<Record<EffectType, Record<string, number | string>>>;
 }
 
 export interface Preset {
@@ -59,10 +63,27 @@ export interface Sequence {
   name: string;
   presetIds: string[];
   transitionDuration: number;
+  // Missing on older sequences, which use crossfade
+  transitionType?: TransitionChoice;
   presetDuration: number;
+  // Missing on older sequences, which use smooth
+  transitionEasing?: TransitionEasing;
+  // Per-preset overrides, parallel to presetIds (slotSettings[i] belongs to
+  // presetIds[i]). Missing on older sequences.
+  slotSettings?: SequenceSlotSettings[];
   looping: boolean;
   audioSource?: AudioSource;
   audioFileId?: string;
+}
+
+// Overrides for one preset in a sequence. Any field left out uses the
+// sequence's setting. The transition fields describe the transition from
+// this preset to the next one.
+export interface SequenceSlotSettings {
+  presetDuration?: number;
+  transitionType?: TransitionChoice;
+  transitionDuration?: number;
+  transitionEasing?: TransitionEasing;
 }
 
 export interface AudioData {

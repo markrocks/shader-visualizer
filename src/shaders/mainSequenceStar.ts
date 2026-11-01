@@ -65,11 +65,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   freqs[3] = level;
 
   float brightness = freqs[1] * 0.25 + freqs[2] * 0.25;
-  float radius = 0.24 + brightness * 0.2;
+  float radius = uCtlStarRadius + brightness * 0.2;
   float invRadius = 1.0/radius;
 
-  vec3 orange = vec3( 0.8, 0.65, 0.3 );
-  vec3 orangeRed = vec3( 0.8, 0.35, 0.1 );
+  vec3 orange = uCtlStarColor;
+  vec3 orangeRed = uCtlGlowColor;
   float time = iTime * 0.1;
   float aspect = iResolution.x/iResolution.y;
   vec2 uv = fragCoord.xy / iResolution.xy;
@@ -87,13 +87,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   float newTime1 = abs( snoise( coord + vec3( 0.0, -time * ( 0.35 + brightness * 0.001 ), time * 0.015 ), 15.0 ) );
   float newTime2 = abs( snoise( coord + vec3( 0.0, -time * ( 0.15 + brightness * 0.001 ), time * 0.015 ), 45.0 ) );
   for( int i=1; i<=7; i++ ) {
+    if (float(i) > uCtlCoronaOctaves) break;
     float power = pow( 2.0, float(i + 1) );
     fVal1 += ( 0.5 / power ) * snoise( coord + vec3( 0.0, -time, time * 0.2 ), ( power * ( 10.0 ) * ( newTime1 + 1.0 ) ) );
     fVal2 += ( 0.5 / power ) * snoise( coord + vec3( 0.0, -time, time * 0.2 ), ( power * ( 25.0 ) * ( newTime2 + 1.0 ) ) );
   }
 
-  float corona = pow( fVal1 * max( 1.1 - fade, 0.0 ), 2.0 ) * 50.0;
-  corona += pow( fVal2 * max( 1.1 - fade, 0.0 ), 2.0 ) * 50.0;
+  float corona = pow( fVal1 * max( 1.1 - fade, 0.0 ), 2.0 ) * uCtlCorona;
+  corona += pow( fVal2 * max( 1.1 - fade, 0.0 ), 2.0 ) * uCtlCorona;
   corona *= 1.2 - newTime1;
   vec3 starSphere = vec3( 0.0 );
 

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useSettingsStore, saveDirectoryHandle, clearDirectoryHandle } from '../../stores/settingsStore';
 import { usePresetStore } from '../../stores/presetStore';
 import { requestDirectoryAccess, isFileSystemAccessSupported } from '../../utils/fileStorage';
+import { QUALITY_OPTIONS } from '../../shaders/performance';
 
 export function SettingsModal() {
   const { 
@@ -10,7 +11,13 @@ export function SettingsModal() {
     isSettingsOpen, 
     setIsSettingsOpen,
     setDirectoryHandle,
-    clearStorage 
+    clearStorage,
+    quality,
+    setQuality,
+    bloom,
+    setBloom,
+    showPerformance,
+    setShowPerformance,
   } = useSettingsStore();
   
   const { loadFromFolder, syncToFolder, presets, sequences } = usePresetStore();
@@ -83,7 +90,7 @@ export function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl">
+      <div className="w-full max-w-md mx-4 max-h-[90vh] flex flex-col bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">
@@ -99,7 +106,69 @@ export function SettingsModal() {
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 overflow-y-auto">
+          {/* Performance Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+              Performance
+            </h3>
+
+            <div className="space-y-2" role="radiogroup" aria-label="Rendering quality">
+              <div className="text-xs text-[var(--text-muted)]">Quality</div>
+              <div className="grid grid-cols-4 gap-1">
+                {QUALITY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={quality === option.value}
+                    onClick={() => setQuality(option.value)}
+                    className={`px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                      quality === option.value
+                        ? 'bg-[var(--accent-primary)] text-white'
+                        : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">
+                {QUALITY_OPTIONS.find((o) => o.value === quality)?.description}
+              </p>
+            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={bloom}
+                onChange={(e) => setBloom(e.target.checked)}
+                className="mt-0.5 w-4 h-4"
+              />
+              <span className="text-sm text-[var(--text-secondary)]">
+                Bloom glow
+                <span className="block text-xs text-[var(--text-muted)]">
+                  Soft glow around bright areas. Turning it off saves a little GPU time.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showPerformance}
+                onChange={(e) => setShowPerformance(e.target.checked)}
+                className="mt-0.5 w-4 h-4"
+              />
+              <span className="text-sm text-[var(--text-secondary)]">
+                Show performance overlay
+                <span className="block text-xs text-[var(--text-muted)]">
+                  Frame rate (FPS), frame times and render resolution over the visuals. Also toggled with 📊.
+                </span>
+              </span>
+            </label>
+          </div>
+
           {/* Storage Folder Section */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">

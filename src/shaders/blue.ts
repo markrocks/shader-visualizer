@@ -45,15 +45,15 @@ float getDistance(vec3 pos, vec2 uv) {
   vec3 originalPos = pos;
 
   for(int i = 0; i < 3; i++) {
-    pos = abs(pos) - 4.5;
-    pos.xz *= rotate(1.0);
-    pos.yz *= rotate(1.0);
+    pos = abs(pos) - uCtlFoldOffset;
+    pos.xz *= rotate(uCtlFoldAngle);
+    pos.yz *= rotate(uCtlFoldAngle);
   }
 
-  pos = repeat(pos, vec3(4.0));
+  pos = repeat(pos, vec3(uCtlRepeatSpan));
 
   float d0 = abs(originalPos.x) - 0.1;
-  float d1 = sdBox(pos, vec3(0.8));
+  float d1 = sdBox(pos, vec3(uCtlBoxSize));
 
   pos.xy *= rotate(mix(1.0, 2.0, abs(sin(iTime))));
   float size = mix(1.1, 1.3, (abs(uv.y) * abs(uv.x)));
@@ -68,8 +68,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec2 p = (fragCoord.xy * 2.0 - iResolution.xy) / min(iResolution.x, iResolution.y);
 
   // camera
-  vec3 cameraOrigin = vec3(0.0, 0.0, -10.0 + iTime * 4.0);
-  vec3 cameraTarget = vec3(cos(iTime) + sin(iTime / 2.0) * 10.0, exp(sin(iTime)) * 2.0, 3.0 + iTime * 4.0);
+  vec3 cameraOrigin = vec3(0.0, 0.0, -10.0 + iTime * uCtlFlySpeed);
+  vec3 cameraTarget = vec3(cos(iTime) + sin(iTime / 2.0) * 10.0, exp(sin(iTime)) * 2.0, 3.0 + iTime * uCtlFlySpeed);
   vec3 upDirection = vec3(0.0, 1.0, 0.0);
   vec3 cameraDir = normalize(cameraTarget - cameraOrigin);
   vec3 cameraRight = normalize(cross(upDirection, cameraOrigin));
@@ -81,7 +81,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec3 rayPos = vec3(0.0);
   float d = 0.0;
 
-  for(int i = 0; i < 80; i++) {
+  for(int i = 0; i < 150; i++) {
+    if (float(i) >= uCtlSteps) break;
     rayPos = cameraOrigin + rayDirection * depth;
     d = getDistance(rayPos, p);
 
@@ -89,11 +90,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       break;
     }
 
-    ac += exp(-d * mix(5.0, 10.0, abs(sin(iTime))));
+    ac += exp(-d * mix(5.0, 10.0, abs(sin(iTime))) * uCtlGlowSharpness);
     depth += d;
   }
 
-  vec3 col = vec3(0.0, 0.3, 0.7);
+  vec3 col = uCtlColor;
   ac *= 1.2 * (iResolution.x/iResolution.y - abs(p.x));
   vec3 finalCol = col * ac * 0.06;
   fragColor = vec4(finalCol, 1.0);

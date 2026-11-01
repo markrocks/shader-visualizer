@@ -73,15 +73,15 @@ void main() {
   }
   
   // Add rotation based on time and audio
-  a += time * 0.2 * (1.0 + modulator * 0.5);
+  a += time * uCtlRotationSpeed * (1.0 + modulator * 0.5);
   
   // Convert back to Cartesian
   vec2 p = vec2(cos(a), sin(a)) * r;
   
   // Create patterns
-  float pattern1 = sin(p.x * uWaveFrequency * 10.0 + time) * 
-                   cos(p.y * uWaveFrequency * 10.0 + time * 1.3);
-  float pattern2 = sin(length(p) * uWaveFrequency * 20.0 - time * 2.0);
+  float pattern1 = sin(p.x * uWaveFrequency * uCtlGridFrequency + time) * 
+                   cos(p.y * uWaveFrequency * uCtlGridFrequency + time * 1.3);
+  float pattern2 = sin(length(p) * uWaveFrequency * uCtlRingFrequency - time * 2.0);
   float pattern3 = sin(a * segments + time);
   
   float combined = (pattern1 + pattern2 + pattern3) / 3.0;
@@ -90,25 +90,25 @@ void main() {
   combined *= (1.0 + modulator * 0.5);
   
   // Create color based on angle and patterns
-  float hue = a / TAU + time * 0.1 + combined * 0.2;
+  float hue = a / TAU + time * uCtlHueSpeed + combined * 0.2;
   float sat = 0.7 + 0.3 * sin(r * 5.0 + time);
   float val = combined;
   
   vec3 hsvColor = hsv2rgb(vec3(hue, sat, val));
   
   // Mix with primary and secondary colors
-  vec3 color1 = mix(uPrimaryColor, hsvColor, 0.5);
-  vec3 color2 = mix(uSecondaryColor, hsvColor, 0.5);
+  vec3 color1 = mix(uPrimaryColor, hsvColor, uCtlColorBlend);
+  vec3 color2 = mix(uSecondaryColor, hsvColor, uCtlColorBlend);
   
   float mixFactor = sin(combined * PI + time) * 0.5 + 0.5;
   vec3 finalColor = mix(color1, color2, mixFactor);
   
   // Add background blend at edges
-  float edgeFade = smoothstep(1.5, 0.5, r);
+  float edgeFade = smoothstep(uCtlEdgeFade, 0.5, r);
   finalColor = mix(uBackgroundColor, finalColor, edgeFade);
   
   // Add center glow
-  float centerGlow = exp(-r * 3.0) * uIntensity * (1.0 + modulator);
+  float centerGlow = exp(-r * uCtlCenterGlow) * uIntensity * (1.0 + modulator);
   finalColor += centerGlow * mix(uPrimaryColor, uSecondaryColor, 0.5);
   
   gl_FragColor = vec4(finalColor, 1.0);

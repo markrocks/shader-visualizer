@@ -10,9 +10,9 @@ import { makePortedFragmentShader } from './shadertoyPort';
 
 export const plasmaGlobeFragmentShader = makePortedFragmentShader(`
 //looks best with around 25 rays
-#define NUM_RAYS 13.
+#define NUM_RAYS floor(uCtlNumRays + 0.5)
 
-#define VOLUMETRIC_STEPS 19
+#define MAX_VOLUMETRIC_STEPS 40
 
 #define MAX_ITER 35
 #define FAR 6.
@@ -102,7 +102,7 @@ vec2 map(vec3 p, float i) {
   p *= ins*outs;
   float id = ins*outs;
 
-  float rz = segm(p, bg, en)-0.011;
+  float rz = segm(p, bg, en)-uCtlRayThickness;
   return vec2(rz,id);
 }
 
@@ -124,7 +124,8 @@ vec3 vmarch(in vec3 ro, in vec3 rd, in float j, in vec3 orig) {
   vec3 p = ro;
   vec2 r = vec2(0.);
   vec3 sum = vec3(0);
-  for( int i=0; i<VOLUMETRIC_STEPS; i++ ) {
+  for( int i=0; i<MAX_VOLUMETRIC_STEPS; i++ ) {
+    if (float(i) >= uCtlVolumetricSteps) break;
     r = map(p,j);
     p += rd*.03;
     float lp = length(p);
@@ -133,7 +134,7 @@ vec3 vmarch(in vec3 ro, in vec3 rd, in float j, in vec3 orig) {
     col.rgb *= smoothstep(.0,.015,-r.x);
     col *= smoothstep(0.04,.2,abs(lp-1.1));
     col *= smoothstep(0.1,.34,lp);
-    sum += abs(col)*5. * (1.2-noise(lp*2.+j*13.+time*5.)*1.1) / (log(distance(p,orig)-2.)+.75);
+    sum += abs(col)*uCtlRayBrightness * (1.2-noise(lp*2.+j*13.+time*5.)*1.1) / (log(distance(p,orig)-2.)+.75);
   }
   return sum;
 }
@@ -156,15 +157,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   //camera
   vec3 ro = vec3(0.,0.,5.);
   vec3 rd = normalize(vec3(p*.7,-1.5));
-  mat2 mx = mm2(time*.4+um.x*6.);
-  mat2 my = mm2(time*0.3+um.y*6.);
+  mat2 mx = mm2(time*.4*uCtlSpin+um.x*6.);
+  mat2 my = mm2(time*0.3*uCtlSpin+um.y*6.);
   ro.xz *= mx;rd.xz *= mx;
   ro.xy *= my;rd.xy *= my;
 
   vec3 bro = ro;
   vec3 brd = rd;
 
-  vec3 col = vec3(0.0125,0.,0.025);
+  vec3 col = uCtlBackgroundColor;
   for (float j = 1.;j<NUM_RAYS+1.;j++) {
     ro = bro;
     rd = brd;
@@ -188,7 +189,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec3 rf2 = reflect( rd, pos2 );
     float nz = (-log(abs(flow(rf*1.2,time)-.01)));
     float nz2 = (-log(abs(flow(rf2*1.2,-time)-.01)));
-    col += (0.1*nz*nz* vec3(0.12,0.12,.5) + 0.05*nz2*nz2*vec3(0.55,0.2,.55))*0.8;
+    col += (0.1*nz*nz* uCtlGlassColor + 0.05*nz2*nz2*uCtlGlassColor2)*0.8;
   }
 
   fragColor = vec4(col*1.3, 1.0);

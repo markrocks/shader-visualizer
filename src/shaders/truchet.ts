@@ -88,12 +88,12 @@ float truchetTile(vec2 uv, float tileType, float lineWidth) {
   // Quarter circles at opposite corners based on tile type
   if (tileType < 0.5) {
     // Type A: bottom-left to top-left, bottom-right to top-right
-    d = min(d, abs(length(uv - vec2(0.0, 0.0)) - 0.5));
-    d = min(d, abs(length(uv - vec2(1.0, 1.0)) - 0.5));
+    d = min(d, abs(length(uv - vec2(0.0, 0.0)) - uCtlArcRadius));
+    d = min(d, abs(length(uv - vec2(1.0, 1.0)) - uCtlArcRadius));
   } else {
     // Type B: bottom-left to bottom-right, top-left to top-right
-    d = min(d, abs(length(uv - vec2(1.0, 0.0)) - 0.5));
-    d = min(d, abs(length(uv - vec2(0.0, 1.0)) - 0.5));
+    d = min(d, abs(length(uv - vec2(1.0, 0.0)) - uCtlArcRadius));
+    d = min(d, abs(length(uv - vec2(0.0, 1.0)) - uCtlArcRadius));
   }
   
   return smoothstep(lineWidth, lineWidth * 0.5, d);
@@ -105,16 +105,19 @@ float truchetTileExtended(vec2 uv, float tileType, float subType, float lineWidt
   
   // Base quarter circles
   if (mod(tileType * 4.0, 2.0) < 1.0) {
-    d = min(d, abs(length(uv - vec2(0.0, 0.0)) - 0.5));
-    d = min(d, abs(length(uv - vec2(1.0, 1.0)) - 0.5));
+    d = min(d, abs(length(uv - vec2(0.0, 0.0)) - uCtlArcRadius));
+    d = min(d, abs(length(uv - vec2(1.0, 1.0)) - uCtlArcRadius));
   } else {
-    d = min(d, abs(length(uv - vec2(1.0, 0.0)) - 0.5));
-    d = min(d, abs(length(uv - vec2(0.0, 1.0)) - 0.5));
+    d = min(d, abs(length(uv - vec2(1.0, 0.0)) - uCtlArcRadius));
+    d = min(d, abs(length(uv - vec2(0.0, 1.0)) - uCtlArcRadius));
   }
   
   // Center decorations based on subType
   vec2 center = vec2(0.5);
   float decoration = 0.0;
+
+  // Scale decorations about the tile center (distances are scaled back below)
+  uv = center + (uv - center) / uCtlDecorationSize;
   
   float decorType = mod(subType * 8.0, 8.0);
   
@@ -161,7 +164,7 @@ float truchetTileExtended(vec2 uv, float tileType, float subType, float lineWidt
     decoration = 1e10;
   }
   
-  d = min(d, decoration);
+  d = min(d, decoration * uCtlDecorationSize);
   
   return smoothstep(lineWidth, lineWidth * 0.3, d);
 }
@@ -192,7 +195,7 @@ void main() {
   vec2 scaledUv = (uv + 1.0) * 0.5 * gridSize;
   
   // Add subtle movement
-  scaledUv += vec2(sin(time * 0.2), cos(time * 0.15)) * 0.5 * modulator;
+  scaledUv += vec2(sin(time * 0.2), cos(time * 0.15)) * uCtlDrift * modulator;
   
   // Get tile coordinates
   vec2 tileId = floor(scaledUv);
@@ -203,14 +206,14 @@ void main() {
   float subType = hash21(tileId + 100.0);
   
   // Animate some tiles
-  float animatedLineWidth = uTruchetLineWidth * (0.8 + 0.4 * sin(time + tileType * TAU));
+  float animatedLineWidth = uTruchetLineWidth * (1.0 - uCtlLinePulse * 0.5 + uCtlLinePulse * sin(time + tileType * TAU));
   animatedLineWidth *= modulator;
   
   // Draw the truchet pattern
   float pattern = truchetTileExtended(tileUv, tileType, subType, animatedLineWidth, time);
   
   // Add glow effect
-  float glow = truchetTileExtended(tileUv, tileType, subType, animatedLineWidth * 3.0, time) * 0.3;
+  float glow = truchetTileExtended(tileUv, tileType, subType, animatedLineWidth * uCtlGlowWidth, time) * uCtlGlowStrength;
   
   // Color based on position and time
   float colorMix = sin(tileId.x * 0.3 + tileId.y * 0.2 + time * 0.5) * 0.5 + 0.5;
@@ -228,7 +231,7 @@ void main() {
   finalColor = mix(finalColor, lineColor, pattern);   // Main pattern
   
   // Subtle pulsing background
-  float bgPulse = sin(time * uWaveFrequency) * 0.05 + 1.0;
+  float bgPulse = sin(time * uWaveFrequency) * uCtlBackgroundPulse + 1.0;
   finalColor *= bgPulse;
   
   gl_FragColor = vec4(finalColor, 1.0);

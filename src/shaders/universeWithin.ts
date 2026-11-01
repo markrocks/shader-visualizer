@@ -10,7 +10,7 @@ import { makePortedFragmentShader } from './shadertoyPort';
 
 export const universeWithinFragmentShader = makePortedFragmentShader(`
 #define S(a, b, t) smoothstep(a, b, t)
-#define NUM_LAYERS 4.
+#define NUM_LAYERS floor(uCtlLayers + 0.5)
 
 float N21(vec2 p) {
   vec3 a = fract(vec3(p.xyx) * vec3(213.897, 653.453, 253.098));
@@ -23,7 +23,7 @@ vec2 GetPos(vec2 id, vec2 offs, float t) {
   float n1 = fract(n*10.);
   float n2 = fract(n*100.);
   float a = t+n;
-  return offs + vec2(sin(a*n1), cos(a*n2))*.4;
+  return offs + vec2(sin(a*n1), cos(a*n2))*uCtlNodeMotion;
 }
 
 float df_line( in vec2 a, in vec2 b, in vec2 p) {
@@ -33,7 +33,7 @@ float df_line( in vec2 a, in vec2 b, in vec2 p) {
 }
 
 float line(vec2 a, vec2 b, vec2 uv) {
-  float r1 = .04;
+  float r1 = uCtlLineWidth;
   float r2 = .01;
 
   float d = df_line(a, b, uv);
@@ -65,7 +65,7 @@ float NetLayer(vec2 st, float n, float t) {
 
     float d = length(st-p[i]);
 
-    float s = (.005/(d*d));
+    float s = (.005*uCtlSparkle/(d*d));
     s *= S(1., .7, d);
     float pulse = sin((fract(p[i].x)+fract(p[i].y)+t)*5.)*.4+.6;
     pulse = pow(pulse, 20.);
@@ -94,7 +94,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
   float s = sin(t);
   float c = cos(t);
-  mat2 rot = mat2(c, -s, s, c);
+  float ra = t*uCtlSpin;
+  mat2 rot = mat2(cos(ra), -sin(ra), sin(ra), cos(ra));
   vec2 st = uv*rot;
   M *= rot*2.;
 
@@ -114,7 +115,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec3 col = baseCol*m;
   col += baseCol*glow;
 
-  col *= 1.-dot(uv,uv);
+  col *= 1.-dot(uv,uv)*uCtlVignette;
 
   fragColor = vec4(col,1);
 }

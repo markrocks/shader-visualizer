@@ -72,15 +72,15 @@ void main() {
   float ringPattern = sin(depth * rings * uWaveFrequency) * 0.5 + 0.5;
   
   // Create angular pattern (segments)
-  float segments = 8.0;
-  float anglePattern = sin(angle * segments + time * 0.5) * 0.5 + 0.5;
+  float segments = floor(uCtlAngleSegments + 0.5);
+  float anglePattern = sin(angle * segments + time * uCtlSpinSpeed) * 0.5 + 0.5;
   
   // Combine patterns
-  float pattern = ringPattern * 0.7 + anglePattern * 0.3;
+  float pattern = mix(anglePattern, ringPattern, uCtlRingMix);
   pattern = pow(pattern, 1.0 / (uIntensity + 0.3));
   
   // Create warping effect
-  float warp = sin(depth * 2.0 + angle * 3.0 + time) * 0.1;
+  float warp = sin(depth * 2.0 + angle * 3.0 + time) * uCtlWarp;
   pattern += warp * modulator;
   
   // Color gradient based on depth
@@ -96,18 +96,18 @@ void main() {
   
   // Add glow effect near center (bright light at end of tunnel)
   float centerGlow = smoothstep(0.6, 0.0, radius) * uIntensity;
-  tunnelColor += centerGlow * (color1 + color2) * 0.6;
+  tunnelColor += centerGlow * (color1 + color2) * uCtlCenterGlow;
   
   // Subtle edge darkening (not too aggressive)
   float edgeDark = smoothstep(0.5, 1.5, radius) * 0.4;
   tunnelColor = mix(tunnelColor, tunnelColor * 0.3 + uBackgroundColor * 0.2, edgeDark);
   
   // Add subtle scanlines for extra effect
-  float scanline = sin(depth * 30.0) * 0.05 + 1.0;
+  float scanline = sin(depth * uCtlScanlineDensity) * uCtlScanlines + 1.0;
   tunnelColor *= scanline;
   
   // Soft vignette
-  float vignette = 1.0 - radius * 0.3;
+  float vignette = 1.0 - radius * uCtlVignette;
   vignette = max(0.3, vignette);
   tunnelColor *= vignette;
   

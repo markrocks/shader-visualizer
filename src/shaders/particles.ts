@@ -6,6 +6,8 @@ uniform float uAudioLevel;
 uniform int uAnimationMode;
 uniform int uMirrorQuadrants;
 uniform int uMirrorSegments;
+// Device pixels per CSS pixel for the target being rendered
+uniform float uPixelRatio;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
@@ -25,12 +27,12 @@ void main() {
   vec3 pos = position;
   
   // Swirling motion
-  float angle = time * 0.5 + aRandom * 6.28318;
+  float angle = time * uCtlSwirlSpeed + aRandom * 6.28318;
   float radius = length(pos.xy) * (1.0 + modulator * 0.3);
   
-  pos.x = cos(angle) * radius + sin(time * 0.3 + aRandom * 10.0) * 0.2;
-  pos.y = sin(angle) * radius + cos(time * 0.4 + aRandom * 10.0) * 0.2;
-  pos.z = sin(time * 0.2 + aRandom * 5.0) * 0.5 * modulator;
+  pos.x = cos(angle) * radius + sin(time * 0.3 + aRandom * 10.0) * uCtlWobble;
+  pos.y = sin(angle) * radius + cos(time * 0.4 + aRandom * 10.0) * uCtlWobble;
+  pos.z = sin(time * 0.2 + aRandom * 5.0) * uCtlDepthWave * modulator;
   
   pos *= uScale;
   
@@ -51,7 +53,11 @@ void main() {
   vDistance = -mvPosition.z;
   
   float size = aSize * (1.0 + modulator * 2.0);
-  gl_PointSize = size * (300.0 / -mvPosition.z);
+  // Size in screen pixels (Point Size 300 = 100%), slightly larger when nearer.
+  // The old perspective formula (size * 300 / depth) made every point 1500+
+  // pixels wide under the orthographic camera, filling the screen white.
+  float nearness = clamp(1.0 + pos.z * 0.25, 0.5, 1.5);
+  gl_PointSize = size * (uCtlPointSize / 300.0) * nearness * uPixelRatio;
   gl_Position = projectionMatrix * mvPosition;
 }
 `;
@@ -72,7 +78,7 @@ void main() {
   
   if (dist > 0.5) discard;
   
-  float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
+  float alpha = 1.0 - smoothstep(uCtlSoftness, 0.5, dist);
   alpha *= uIntensity;
   
   // Color based on random value and time
@@ -81,7 +87,7 @@ void main() {
   
   // Add glow
   float glow = exp(-dist * 4.0);
-  color += glow * 0.3;
+  color += glow * uCtlGlow;
   
   // Fade based on distance
   alpha *= 1.0 - smoothstep(2.0, 10.0, vDistance);

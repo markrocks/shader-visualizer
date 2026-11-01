@@ -9,6 +9,7 @@ import { waterCausticsFragmentShader } from './waterCaustics';
 import { plasmaGlobeFragmentShader } from './plasmaGlobe';
 import { blueFragmentShader } from './blue';
 import { parametricsFragmentShader } from './parametrics';
+import { liquidCarbonBufferShader, liquidCarbonImageShader } from './liquidCarbon';
 
 // Effects ported from Shadertoy that render through PortedShaderEffect
 export const PORTED_FRAGMENT_SHADERS: Partial<Record<EffectType, string>> = {
@@ -22,4 +23,9 @@ export const PORTED_FRAGMENT_SHADERS: Partial<Record<EffectType, string>> = {
   'plasma-globe': plasmaGlobeFragmentShader,
   'blue': blueFragmentShader,
   'parametrics': parametricsFragmentShader,
+};
+
+// Two-pass ports: the buffer renders to a texture that the image pass reads as iChannel0
+export const PORTED_MULTIPASS_SHADERS: Partial<Record<EffectType, { buffer: string; image: string }>> = {
+  'liquid-carbon': { buffer: liquidCarbonBufferShader, image: liquidCarbonImageShader },
 };

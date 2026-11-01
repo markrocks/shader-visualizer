@@ -75,8 +75,8 @@ float fbm(vec2 p, int octaves) {
   for (int i = 0; i < 8; i++) {
     if (i >= octaves) break;
     value += amplitude * cnoise(p * frequency);
-    frequency *= 2.0;
-    amplitude *= 0.5;
+    frequency *= uCtlLacunarity;
+    amplitude *= uCtlGain;
   }
   
   return value;
@@ -110,11 +110,11 @@ void main() {
   );
   
   vec2 r = vec2(
-    fbm(uv * uScale + 4.0 * q + vec2(1.7, 9.2) + time * 0.15, uNoiseOctaves),
-    fbm(uv * uScale + 4.0 * q + vec2(8.3, 2.8) + time * 0.15, uNoiseOctaves)
+    fbm(uv * uScale + uCtlWarpStrength * q + vec2(1.7, 9.2) + time * 0.15, uNoiseOctaves),
+    fbm(uv * uScale + uCtlWarpStrength * q + vec2(8.3, 2.8) + time * 0.15, uNoiseOctaves)
   );
   
-  float f = fbm(uv * uScale + 4.0 * r + time * 0.2, uNoiseOctaves);
+  float f = fbm(uv * uScale + uCtlWarpStrength * r + time * 0.2, uNoiseOctaves);
   
   // Audio modulation
   f = f * (1.0 + modulator * 0.5);
@@ -125,7 +125,7 @@ void main() {
   
   // Wave pattern overlay
   float wave = sin(uv.x * uWaveFrequency * 10.0 + time + f * 5.0) * 0.5 + 0.5;
-  colorValue = mix(colorValue, wave, 0.2 * modulator);
+  colorValue = mix(colorValue, wave, uCtlWaveMix * modulator);
   
   // Color mixing
   vec3 color1 = uPrimaryColor;
@@ -137,7 +137,7 @@ void main() {
   
   // Add subtle glow at high values
   float glow = smoothstep(0.7, 1.0, colorValue) * uIntensity;
-  finalColor += glow * 0.3;
+  finalColor += glow * uCtlGlow;
   
   gl_FragColor = vec4(finalColor, 1.0);
 }

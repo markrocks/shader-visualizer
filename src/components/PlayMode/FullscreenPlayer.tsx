@@ -1,49 +1,72 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, type RefObject } from 'react';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { usePresetStore } from '../../stores/presetStore';
 import { useVisualizationStore } from '../../stores/visualizationStore';
-import { VisualizationCanvas } from '../shared/VisualizationCanvas';
-import { DEFAULT_PARAMS } from '../../types';
-import type { Sequence, VisualizationParams } from '../../types';
+import { TransitionCanvas, type TransitionState } from '../shared/TransitionCanvas';
+import { useSequencePlayback } from '../../hooks/useSequencePlayback';
+import type { Sequence } from '../../types';
 
 interface FullscreenPlayerProps {
   sequence: Sequence;
   onExit: () => void;
 }
 
-// Easing function for smoother crossfade
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+interface ProgressBarProps {
+  currentIndex: number;
+  count: number;
+  transitionRef: RefObject<TransitionState>;
+  active: boolean;
+}
+
+// Sequence progress, including the in-flight transition. Updates the bar's
+// width directly each frame instead of re-rendering React.
+function ProgressBar({ currentIndex, count, transitionRef, active }: ProgressBarProps) {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    let frame = 0;
+    const update = () => {
+      if (barRef.current) {
+        const progress = transitionRef.current?.progress ?? 0;
+        barRef.current.style.width = `${((currentIndex + progress) / count) * 100}%`;
+      }
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(frame);
+  }, [active, currentIndex, count, transitionRef]);
+
+  return (
+    <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+      <div ref={barRef} className="h-full bg-white/80" style={{ width: `${(currentIndex / count) * 100}%` }} />
+    </div>
+  );
 }
 
 export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(containerRef);
-  const { getPreset } = usePresetStore();
-  const { setParams } = useVisualizationStore();
-  
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const getPreset = usePresetStore((state) => state.getPreset);
+  const setParams = useVisualizationStore((state) => state.setParams);
+
   const [showControls, setShowControls] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
-  const [debugPhase, setDebugPhase] = useState<'preset' | 'transitioning' | 'complete'>('preset');
-
-  // Debug pause ref - when true, the animation loop will pause after transition
-  const debugPauseRef = useRef(false);
-  const debugPauseTimerRef = useRef<number | null>(null);
-  
-  // Two-layer approach: layers never unmount, just swap visibility
-  const [layerAParams, setLayerAParams] = useState<VisualizationParams>(DEFAULT_PARAMS);
-  const [layerBParams, setLayerBParams] = useState<VisualizationParams>(DEFAULT_PARAMS);
-  const [layerAOpacity, setLayerAOpacity] = useState(1);
-  const [layerBOpacity, setLayerBOpacity] = useState(0);
-  // Track which layer is currently "front" (the one fading in during transition)
-  const activeLayerRef = useRef<'A' | 'B'>('A');
-  const isTransitioningRef = useRef(false);
-  // Track last set opacity to avoid unnecessary state updates
-  const lastOpacityRef = useRef({ a: 1, b: 0 });
-  
   const hideControlsTimerRef = useRef<number | null>(null);
+
+  const handleEnd = useCallback(() => {
+    exitFullscreen();
+    onExit();
+  }, [exitFullscreen, onExit]);
+
+  const { paramsA, paramsB, transitionRef, currentIndex, jumpTo } = useSequencePlayback({
+    sequenceId: sequence.id,
+    paused: isPaused,
+    onEnd: handleEnd,
+    // Keep the shared params in sync with what's on screen
+    onPresetChange: setParams,
+  });
 
   // Enter fullscreen on mount
   useEffect(() => {
@@ -80,157 +103,6 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     }
   }, [isFullscreen, onExit, hasEnteredFullscreen]);
 
-  // Initialize first preset
-  useEffect(() => {
-    if (sequence.presetIds.length > 0) {
-      const firstPreset = getPreset(sequence.presetIds[0]);
-      if (firstPreset) {
-        setLayerAParams(firstPreset.params);
-        setLayerBParams(firstPreset.params);
-        setParams(firstPreset.params);
-        setLayerAOpacity(1);
-        setLayerBOpacity(0);
-        activeLayerRef.current = 'A';
-      }
-    }
-  }, [sequence, getPreset, setParams]);
-
-  // Sequence playback logic
-  useEffect(() => {
-    if (isPaused || sequence.presetIds.length === 0) return;
-
-    const presetDuration = sequence.presetDuration * 1000;
-    const transitionDuration = sequence.transitionDuration * 1000;
-    const totalDuration = presetDuration + transitionDuration;
-
-    let animationFrame: number;
-    let startTime = performance.now();
-    isTransitioningRef.current = false;
-
-    // Helper to set opacity only when changed (avoids unnecessary re-renders)
-    const setOpacities = (a: number, b: number) => {
-      if (Math.abs(lastOpacityRef.current.a - a) > 0.001) {
-        lastOpacityRef.current.a = a;
-        setLayerAOpacity(a);
-      }
-      if (Math.abs(lastOpacityRef.current.b - b) > 0.001) {
-        lastOpacityRef.current.b = b;
-        setLayerBOpacity(b);
-      }
-    };
-
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-
-      // Check if we should move to next preset FIRST (before cycleTime calculation)
-      if (elapsed >= totalDuration && !debugPauseRef.current) {
-        // Set final opacities: the layer that was fading IN should be at 1
-        // (opposite of activeLayerRef, since active was fading OUT)
-        if (activeLayerRef.current === 'A') {
-          setOpacities(0, 1); // Layer A faded out, Layer B faded in
-        } else {
-          setOpacities(1, 0); // Layer B faded out, Layer A faded in
-        }
-        // DEBUG: Pause here for 2 seconds to observe 'Transition Complete'
-        setDebugPhase('complete');
-        debugPauseRef.current = true;
-        
-        // Clear any existing timer
-        if (debugPauseTimerRef.current) {
-          clearTimeout(debugPauseTimerRef.current);
-        }
-        
-        // After 2 seconds, continue with the transition
-        debugPauseTimerRef.current = window.setTimeout(() => {
-          debugPauseRef.current = false;
-          
-          const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-          
-          if (nextIndex === 0 && !sequence.looping) {
-            exitFullscreen();
-            onExit();
-            return;
-          }
-
-          // Swap which layer is active (the one that just faded in is now active)
-          activeLayerRef.current = activeLayerRef.current === 'A' ? 'B' : 'A';
-          
-          // Update the store params
-          const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-          if (nextPreset) {
-            setParams(nextPreset.params);
-          }
-          
-          setCurrentIndex(nextIndex);
-          isTransitioningRef.current = false;
-          setDebugPhase('preset');
-        }, 2000);
-        
-        // Don't continue animation loop during debug pause
-        return;
-      }
-
-      // Only process cycleTime logic if we haven't completed the transition
-      const cycleTime = elapsed % totalDuration;
-
-      if (cycleTime < presetDuration) {
-        // Not transitioning - keep current opacities stable
-        if (isTransitioningRef.current) {
-          isTransitioningRef.current = false;
-        }
-        setDebugPhase('preset');
-        // Active layer stays at 1, inactive at 0 - only set once
-        if (activeLayerRef.current === 'A') {
-          setOpacities(1, 0);
-        } else {
-          setOpacities(0, 1);
-        }
-      } else {
-        // Transitioning
-        setDebugPhase('transitioning');
-        if (!isTransitioningRef.current) {
-          isTransitioningRef.current = true;
-          
-          // Set up the next preset on the INACTIVE layer
-          const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-          const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-          if (nextPreset) {
-            // Put next preset on the inactive layer
-            if (activeLayerRef.current === 'A') {
-              setLayerBParams(nextPreset.params);
-            } else {
-              setLayerAParams(nextPreset.params);
-            }
-          }
-        }
-        
-        const transitionElapsed = cycleTime - presetDuration;
-        const rawProgress = Math.min(transitionElapsed / transitionDuration, 1);
-        const progress = easeInOutCubic(rawProgress);
-        
-        // Crossfade: active fades out, inactive fades in
-        if (activeLayerRef.current === 'A') {
-          setOpacities(1 - progress, progress);
-        } else {
-          setOpacities(progress, 1 - progress);
-        }
-      }
-
-      animationFrame = requestAnimationFrame(animate);
-    };
-
-    animationFrame = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-      if (debugPauseTimerRef.current) {
-        clearTimeout(debugPauseTimerRef.current);
-      }
-    };
-  }, [currentIndex, sequence, isPaused, getPreset, setParams, exitFullscreen, onExit]);
-
   const handleMouseMove = useCallback(() => {
     if (hideControlsTimerRef.current) {
       clearTimeout(hideControlsTimerRef.current);
@@ -249,45 +121,9 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
     };
   }, []);
 
-  const handleSkipNext = useCallback(() => {
-    const nextIndex = (currentIndex + 1) % sequence.presetIds.length;
-    const nextPreset = getPreset(sequence.presetIds[nextIndex]);
-    if (nextPreset) {
-      // Set both layers to the same preset for instant switch
-      setLayerAParams(nextPreset.params);
-      setLayerBParams(nextPreset.params);
-      setParams(nextPreset.params);
-      setLayerAOpacity(1);
-      setLayerBOpacity(0);
-      activeLayerRef.current = 'A';
-    }
-    setCurrentIndex(nextIndex);
-  }, [currentIndex, sequence, getPreset, setParams]);
-
-  const handleSkipPrev = useCallback(() => {
-    const prevIndex = currentIndex === 0 ? sequence.presetIds.length - 1 : currentIndex - 1;
-    const prevPreset = getPreset(sequence.presetIds[prevIndex]);
-    if (prevPreset) {
-      setLayerAParams(prevPreset.params);
-      setLayerBParams(prevPreset.params);
-      setParams(prevPreset.params);
-      setLayerAOpacity(1);
-      setLayerBOpacity(0);
-      activeLayerRef.current = 'A';
-    }
-    setCurrentIndex(prevIndex);
-  }, [currentIndex, sequence, getPreset, setParams]);
-
-  // For progress bar display
-  const transitionProgress = (() => {
-    if (!isTransitioningRef.current) return 0;
-    // Calculate based on current opacity
-    if (activeLayerRef.current === 'A') {
-      return layerBOpacity;
-    } else {
-      return layerAOpacity;
-    }
-  })();
+  const count = sequence.presetIds.length;
+  const handleSkipNext = useCallback(() => jumpTo((currentIndex + 1) % count), [jumpTo, currentIndex, count]);
+  const handleSkipPrev = useCallback(() => jumpTo((currentIndex - 1 + count) % count), [jumpTo, currentIndex, count]);
 
   return (
     <div
@@ -295,37 +131,9 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
       className="fixed inset-0 z-50 bg-black"
       onMouseMove={handleMouseMove}
     >
-      {/* Layer A - hidden when opacity is very low */}
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          opacity: layerAOpacity,
-          visibility: layerAOpacity < 0.01 ? 'hidden' : 'visible',
-          transform: layerAOpacity < 0.01 ? 'translateX(-9999px)' : 'none',
-          pointerEvents: layerAOpacity < 0.5 ? 'none' : 'auto'
-        }}
-      >
-        <VisualizationCanvas params={layerAParams} className="w-full h-full" />
-      </div>
-
-      {/* Layer B - hidden when opacity is very low */}
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          opacity: layerBOpacity,
-          visibility: layerBOpacity < 0.01 ? 'hidden' : 'visible',
-          transform: layerBOpacity < 0.01 ? 'translateX(-9999px)' : 'none',
-          pointerEvents: layerBOpacity < 0.5 ? 'none' : 'auto'
-        }}
-      >
-        <VisualizationCanvas params={layerBParams} className="w-full h-full" />
-      </div>
-
-      {/* Debug label */}
-      <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/70 text-white text-sm rounded z-20">
-        {debugPhase === 'preset' && 'Preset Phase'}
-        {debugPhase === 'transitioning' && 'Transition Phase'}
-        {debugPhase === 'complete' && 'Transition Complete'}
+      {/* Both presets render on one canvas and are blended by the transition shader */}
+      <div className="absolute inset-0">
+        <TransitionCanvas paramsA={paramsA} paramsB={paramsB} transitionRef={transitionRef} />
       </div>
 
       {/* Controls overlay */}
@@ -361,17 +169,10 @@ export function FullscreenPlayer({ sequence, onExit }: FullscreenPlayerProps) {
               {getPreset(sequence.presetIds[currentIndex])?.name || 'Unknown'}
             </span>
             <span>
-              {currentIndex + 1} / {sequence.presetIds.length}
+              {currentIndex + 1} / {count}
             </span>
           </div>
-          <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white/80 transition-all duration-100"
-              style={{
-                width: `${((currentIndex + transitionProgress) / sequence.presetIds.length) * 100}%`,
-              }}
-            />
-          </div>
+          <ProgressBar currentIndex={currentIndex} count={count} transitionRef={transitionRef} active={showControls} />
         </div>
 
         <div className="text-center mt-3 text-xs text-white/40">

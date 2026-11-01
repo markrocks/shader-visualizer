@@ -54,14 +54,15 @@ vec2 disp(float t) { return vec2(sin(t * 0.22) * 1., cos(t * 0.175) * 1.) * 2.; 
 vec2 cloudMap(vec3 p) {
   vec3 p2 = p;
   p2.xy -= disp(p.z).xy;
-  p.xy *= rot(sin(p.z + iTime) * (0.1 + prm1 * 0.05) + iTime * 0.09);
+  p.xy *= rot(sin(p.z + iTime) * (uCtlTwist + prm1 * 0.05) + iTime * 0.09);
   float cl = mag2(p2.xy);
   float d = 0.;
   p *= .61 * uScale;
   float z = 1.;
   float trk = 1.;
-  float dspAmp = 0.1 + prm1 * 0.2 + audioAmp * 0.15;
-  for (int i = 0; i < 5; i++) {
+  float dspAmp = uCtlTurbulence + prm1 * 0.2 + audioAmp * 0.15;
+  for (int i = 0; i < 8; i++) {
+    if (float(i) >= uCtlOctaves) break;
     p += sin(p.zxy * 0.75 * trk + iTime * trk * .8) * dspAmp;
     d -= abs(dot(cos(p), sin(p.yzx)) * z);
     z *= 0.57;
@@ -69,7 +70,7 @@ vec2 cloudMap(vec3 p) {
     p = p * m3;
   }
   d = abs(d + prm1 * 3.) + prm1 * .3 - 2.5 + bsMo.y;
-  return vec2(d + cl * .2 + 0.25, cl);
+  return vec2(d + cl * uCtlTunnelTightness + 0.25, cl);
 }
 
 vec4 renderClouds(in vec3 ro, in vec3 rd, float time) {
@@ -95,7 +96,7 @@ vec4 renderClouds(in vec3 ro, in vec3 rd, float time) {
     }
 
     float fogC = exp(t * 0.2 - 2.2);
-    col.rgba += vec4(0.06, 0.11, 0.11, 0.1) * clamp(fogC - fogT, 0., 1.);
+    col.rgba += vec4(0.06, 0.11, 0.11, 0.1) * uCtlFog * clamp(fogC - fogT, 0., 1.);
     fogT = fogC;
     rez = rez + col * (1. - rez.a);
     t += clamp(0.5 - dn * dn * .05, 0.09, 0.3);
@@ -153,7 +154,7 @@ void main() {
 
   ro += vec3(sin(iTime) * 0.5, 0., 0);
 
-  float dspAmp = .85;
+  float dspAmp = uCtlPathSway;
   ro.xy += disp(ro.z) * dspAmp;
   float tgtDst = 3.5;
 

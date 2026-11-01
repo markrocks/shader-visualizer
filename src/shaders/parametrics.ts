@@ -9,28 +9,21 @@ import { makePortedFragmentShader } from './shadertoyPort';
 // global minimum distance, then bisecting the derivative for the exact one.
 //
 // Port changes: the film-grain noise texture is replaced by a procedural hash,
-// a ternary used as a statement is rewritten as if/else, and the vignette is
-// clamped so it stays valid when zoomed out.
+// a ternary used as a statement is rewritten as if/else, the vignette is
+// clamped so it stays valid when zoomed out, and the TYPE / COLOR_TYPE
+// #if blocks are runtime branches so they can be switched from the controls.
 
 export const parametricsFragmentShader = makePortedFragmentShader(`
 #define time iTime
 #define pi 3.14159265
 
-//Included a few types of parametric curves
-// 1= Hypotrochoid | 2 = Epitrochoid | 3 = Rose curve | 4 = Lissajous | 5 =  Hypocycloid
-#define TYPE 2
-
-//Coloring scheme
+// Curve type (uCtlCurveType):
+// 1= Hypotrochoid | 2 = Epitrochoid | 3 = Rose curve | 4 = Lissajous | 5 =  Hypocycloid | 6 = Triangle waves
+// Coloring scheme (uCtlColorScheme):
 // 1 = Default | 2 = Vintage | 3 = Argon
-#define COLOR_TYPE 1
-
-//might need to be adjusted depending on the curve
-#define STRIDE 0.035
-
-#if TYPE == 5
-#undef STRIDE
-#define STRIDE 0.13
-#endif
+// Both were compile-time #defines in the original; they are runtime switches here.
+int curveType() { return int(clamp(floor(uCtlCurveType + 0.5), 1.0, 6.0)); }
+int colorScheme() { return int(clamp(floor(uCtlColorScheme + 0.5), 1.0, 3.0)); }
 
 // Was a 256px noise texture lookup
 float grain(vec2 q) {
@@ -46,53 +39,56 @@ float sfloor(in float x, in float w) {
 
 //parametric equation
 vec2 f(in float t) {
+  int type = curveType();
+  float x, y;
+
   //Hypotrochoid
-  #if TYPE == 1
-  float cam= sfloor(time*0.6,.2)*pi;
-  float R = mod(floor(time*0.3),9.)+3.;
-  const float r = 1.;
-  float d= R;
-  float x = ((R-r)*cos(t-cam)+d*cos((R-r)/r*t))/(R+.5)*3.;
-  float y = ((R-r)*sin(t)-d*sin((R-r)/r*t))/(R+.5)*3.;
+  if (type == 1) {
+    float cam= sfloor(time*0.6,.2)*pi;
+    float R = mod(floor(time*0.3),9.)+3.;
+    const float r = 1.;
+    float d= R;
+    x = ((R-r)*cos(t-cam)+d*cos((R-r)/r*t))/(R+.5)*3.;
+    y = ((R-r)*sin(t)-d*sin((R-r)/r*t))/(R+.5)*3.;
 
   //Epitrochoid
-  #elif TYPE == 2
-  float cam= sfloor(time*0.4,.1)*pi*2.;
-  const float R = 2.8;
-  const float r = .4;
-  float d = sin(time*0.21)*2.+2.6;
-  float x = (R+r)*cos(t-cam)-d*cos((R+r)/r*t);
-  float y = (R+r)*sin(t)-d*sin((R+r)/r*t);
+  } else if (type == 2) {
+    float cam= sfloor(time*0.4,.1)*pi*2.;
+    const float R = 2.8;
+    const float r = .4;
+    float d = sin(time*0.21)*2.+2.6;
+    x = (R+r)*cos(t-cam)-d*cos((R+r)/r*t);
+    y = (R+r)*sin(t)-d*sin((R+r)/r*t);
 
   //Rose Curve
-  #elif TYPE == 3
-  float cam= sfloor(time*0.4,.1)*pi;
-  float k = mod(floor(time*0.4),6.)+2.;
-  float x = cos(k*t-cam)*cos(t+cam)*5.5;
-  float y = cos(k*t)*sin(t)*5.5;
+  } else if (type == 3) {
+    float cam= sfloor(time*0.4,.1)*pi;
+    float k = mod(floor(time*0.4),6.)+2.;
+    x = cos(k*t-cam)*cos(t+cam)*5.5;
+    y = cos(k*t)*sin(t)*5.5;
 
   //Lissajous
-  #elif TYPE == 4
-  float ft = mod(floor(time*0.25),3.);
-  float a = 3.+ft;
-  float b = 2.+ft;
-  float y = sin(a*t+pi/2.+time*1.5)*5.;
-  float x = sin(b*t)*5.;
+  } else if (type == 4) {
+    float ft = mod(floor(time*0.25),3.);
+    float a = 3.+ft;
+    float b = 2.+ft;
+    y = sin(a*t+pi/2.+time*1.5)*5.;
+    x = sin(b*t)*5.;
 
   //Hypocycloid (just a special case of hypotrochoids)
-  #elif TYPE == 5
-  const float a = 6.;
-  float ft = mod(floor(time*0.25),5.)+2.25;
-  float b = 6./ft;
-  float cam= sfloor(time*0.5,.2)*pi;
-  float x = ((a-b)*cos(t-cam) + b*cos(t*(a/b-1.)));
-  float y = ((a-b)*sin(t) - b*sin(t*(a/b-1.)));
+  } else if (type == 5) {
+    const float a = 6.;
+    float ft = mod(floor(time*0.25),5.)+2.25;
+    float b = 6./ft;
+    float cam= sfloor(time*0.5,.2)*pi;
+    x = ((a-b)*cos(t-cam) + b*cos(t*(a/b-1.)));
+    y = ((a-b)*sin(t) - b*sin(t*(a/b-1.)));
 
-  #else
-  //we can also use triangle waves :)
-  float x= (abs(fract(t*1.+time*0.2)-0.5)-0.25)*20.;
-  float y= ((abs(fract(t*.5+.5*abs(fract(t*.5+.5)-0.5))-0.5))-0.25)*20.;
-  #endif
+  } else {
+    //we can also use triangle waves :)
+    x= (abs(fract(t*1.+time*0.2)-0.5)-0.25)*20.;
+    y= ((abs(fract(t*.5+.5*abs(fract(t*.5+.5)-0.5))-0.5))-0.25)*20.;
+  }
 
   return vec2(x,y);
 }
@@ -134,7 +130,8 @@ float intersect(in vec2 p, in float near, in float far) {
     }
     if (t > far)break;
     told = t;
-    t += log(d+1.15)*STRIDE;
+    //stride might need to be adjusted depending on the curve
+    t += log(d+1.15)*(curveType() == 5 ? 0.13 : 0.035);
   }
 
   return bisect(p, nr,fr);
@@ -154,31 +151,33 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec2 p = fragCoord.xy / iResolution.xy-0.5;
   vec2 bp = p+0.5;
   p.x *= iResolution.x/iResolution.y;
-  p *= 19.;
+  p *= uCtlZoom;
   float rz = intersect(p,0.,30.);
 
-  #if COLOR_TYPE == 1
-  rz = pow(rz*2.,0.5);
-  vec3 col = vec3(2.,1.5,.1)*1.-log(rz+1.8);
-  col = clamp(col,0.5,10.);
-  col *= (grain(p*0.00025*iResolution.x+fract(time)*vec2(51,100))-0.5)*.24+1.;
-  col = mix(col,tone(col,1.7),0.5);
+  int scheme = colorScheme();
+  vec3 col;
+  if (scheme == 1) {
+    rz = pow(rz*2.,0.5);
+    col = vec3(2.,1.5,.1)*1.-log(rz+1.8);
+    col = clamp(col,0.5,10.);
+    col *= (grain(p*0.00025*iResolution.x+fract(time)*vec2(51,100))-0.5)*.24*uCtlGrain+1.;
+    col = mix(col,tone(col,1.7),0.5);
 
-  #elif COLOR_TYPE == 2
-  vec3 col = vec3(5.,1.5,.5)*log(rz+1.05);
-  col = tone(col,8.5);
-  col *= (grain(p*0.00017*iResolution.x+fract(time)*vec2(51,100))-0.5)*.12+1.;
+  } else if (scheme == 2) {
+    col = vec3(5.,1.5,.5)*log(rz+1.05);
+    col = tone(col,8.5);
+    col *= (grain(p*0.00017*iResolution.x+fract(time)*vec2(51,100))-0.5)*.12*uCtlGrain+1.;
 
-  #else
-  rz = pow(rz*50.,.7);
-  vec3 col = vec3(.6,.2,1.)/(rz+1.5)*9.;
-  col *= (grain(p*0.00025*iResolution.x+fract(time)*vec2(51,100))-0.5)*.45+1.;
-  col = tone(col,1.6);
-  #endif
+  } else {
+    rz = pow(rz*50.,.7);
+    col = vec3(.6,.2,1.)/(rz+1.5)*9.;
+    col *= (grain(p*0.00025*iResolution.x+fract(time)*vec2(51,100))-0.5)*.45*uCtlGrain+1.;
+    col = tone(col,1.6);
+  }
 
   //vign from iq (very nice!)
   // Clamped so zooming out (Scale > 1) doesn't feed pow() a negative base
-  col *= pow(max(16.0*bp.x*bp.y*(1.0-bp.x)*(1.0-bp.y), 0.0),.45);
+  col *= pow(max(16.0*bp.x*bp.y*(1.0-bp.x)*(1.0-bp.y), 0.0),uCtlVignette);
 
   fragColor = vec4(col,1.0);
 }

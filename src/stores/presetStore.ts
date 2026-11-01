@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Preset, Sequence, VisualizationParams } from '../types';
+import type { Preset, Sequence, SequenceSlotSettings, VisualizationParams } from '../types';
+import { alignedSlots } from '../utils/sequenceSlots';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   savePresetsToFolder, 
@@ -28,6 +29,8 @@ interface PresetState {
   addPresetToSequence: (sequenceId: string, presetId: string) => Promise<void>;
   removePresetFromSequence: (sequenceId: string, presetIndex: number) => Promise<void>;
   reorderSequencePresets: (sequenceId: string, fromIndex: number, toIndex: number) => Promise<void>;
+  // Replaces the per-preset overrides for one position in a sequence
+  updateSequenceSlot: (sequenceId: string, presetIndex: number, settings: SequenceSlotSettings) => Promise<void>;
   loadFromFolder: (handle: FileSystemDirectoryHandle) => Promise<void>;
   syncToFolder: () => Promise<void>;
   setPresets: (presets: Preset[]) => void;
@@ -95,10 +98,14 @@ export const usePresetStore = create<PresetState>()(
 
       deletePreset: async (id) => {
         const newPresets = get().presets.filter((p) => p.id !== id);
-        const newSequences = get().sequences.map((s) => ({
-          ...s,
-          presetIds: s.presetIds.filter((pid) => pid !== id),
-        }));
+        const newSequences = get().sequences.map((s) => {
+          const slots = alignedSlots(s);
+          return {
+            ...s,
+            presetIds: s.presetIds.filter((pid) => pid !== id),
+            slotSettings: slots.filter((_, i) => s.presetIds[i] !== id),
+          };
+        });
         set({ presets: newPresets, sequences: newSequences, lastSyncError: null });
         await Promise.all([
           syncPresetsToFolder(newPresets),
@@ -148,7 +155,7 @@ export const usePresetStore = create<PresetState>()(
       addPresetToSequence: async (sequenceId, presetId) => {
         const newSequences = get().sequences.map((s) =>
           s.id === sequenceId
-            ? { ...s, presetIds: [...s.presetIds, presetId] }
+            ? { ...s, presetIds: [...s.presetIds, presetId], slotSettings: [...alignedSlots(s), {}] }
             : s
         );
         set({ sequences: newSequences, lastSyncError: null });
@@ -161,6 +168,7 @@ export const usePresetStore = create<PresetState>()(
             ? {
                 ...s,
                 presetIds: s.presetIds.filter((_, i) => i !== presetIndex),
+                slotSettings: alignedSlots(s).filter((_, i) => i !== presetIndex),
               }
             : s
         );
@@ -174,7 +182,22 @@ export const usePresetStore = create<PresetState>()(
           const newPresetIds = [...s.presetIds];
           const [removed] = newPresetIds.splice(fromIndex, 1);
           newPresetIds.splice(toIndex, 0, removed);
-          return { ...s, presetIds: newPresetIds };
+          // Overrides move with their preset
+          const newSlots = alignedSlots(s);
+          const [removedSlot] = newSlots.splice(fromIndex, 1);
+          newSlots.splice(toIndex, 0, removedSlot);
+          return { ...s, presetIds: newPresetIds, slotSettings: newSlots };
+        });
+        set({ sequences: newSequences, lastSyncError: null });
+        await syncSequencesToFolder(newSequences);
+      },
+
+      updateSequenceSlot: async (sequenceId, presetIndex, settings) => {
+        const newSequences = get().sequences.map((s) => {
+          if (s.id !== sequenceId) return s;
+          const newSlots = alignedSlots(s);
+          newSlots[presetIndex] = settings;
+          return { ...s, slotSettings: newSlots };
         });
         set({ sequences: newSequences, lastSyncError: null });
         await syncSequencesToFolder(newSequences);

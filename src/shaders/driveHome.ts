@@ -14,13 +14,13 @@ export const driveHomeFragmentShader = makePortedFragmentShader(`
 #define B(a, b, edge, t) S(a-edge, a+edge, t)*S(b+edge, b-edge, t)
 #define sat(x) clamp(x,0.,1.)
 
-#define streetLightCol vec3(1., .7, .3)
-#define headLightCol vec3(.8, .8, 1.)
-#define tailLightCol vec3(1., .1, .1)
+#define streetLightCol uCtlStreetLightColor
+#define headLightCol uCtlHeadLightColor
+#define tailLightCol uCtlTailLightColor
 
 #define HIGH_QUALITY
-#define CAM_SHAKE 1.
-#define LANE_BIAS .5
+#define CAM_SHAKE uCtlCamShake
+#define LANE_BIAS uCtlLaneBias
 #define RAIN
 
 vec3 ro, rd;
@@ -148,6 +148,7 @@ void CameraSetup(vec2 uv, vec3 pos, vec3 lookat, float zoom, float m) {
   offs += vec2(ripple*ripple, ripple);
   #endif
   vec3 center = ro + f*zoom;
+  offs *= uCtlRain;
   vec3 i = center + (uv.x-offs.x)*r + (uv.y-offs.y)*u;
 
   rd = normalize(i-ro);
@@ -294,8 +295,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   t *= .03;
   t += mouse.x;
 
-  // WebGL is always GLES, so the step stays constant (1/8) throughout
-  const float stp = 1./8.;
+  // One step size for all light loops, as on GLES in the original (default 1/8)
+  float stp = 1./floor(uCtlLightsPerSide + 0.5);
 
   for(float i=0.; i<1.; i+=stp) {
     col += StreetLights(i, t);
@@ -313,7 +314,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   col += TailLights(0., t);
   col += TailLights(.5, t);
 
-  col += sat(rd.y)*vec3(.6, .5, .9);
+  col += sat(rd.y)*uCtlSkyColor;
 
   fragColor = vec4(col, 0.);
 }

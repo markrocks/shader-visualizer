@@ -6,16 +6,19 @@ import { useSettingsStore, loadDirectoryHandle } from './stores/settingsStore';
 import { usePresetStore } from './stores/presetStore';
 import { verifyPermission } from './utils/fileStorage';
 import type { Sequence } from './types';
+import { useAudioAnalysisLoop } from './hooks/useAudioAnalysisLoop';
 
 type Tab = 'params' | 'presets' | 'sequences';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('params');
+  // Audio analysis runs here so it continues in fullscreen playback
+  useAudioAnalysisLoop();
   const [playingSequence, setPlayingSequence] = useState<Sequence | null>(null);
   const [previewingSequence, setPreviewingSequence] = useState<Sequence | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
-  const { setDirectoryHandle, setIsSettingsOpen, storageFolderName } = useSettingsStore();
+  const { setDirectoryHandle, setIsSettingsOpen, storageFolderName, showPerformance, setShowPerformance } = useSettingsStore();
   const { loadFromFolder, isLoading } = usePresetStore();
 
   // Load directory handle from IndexedDB on mount
@@ -86,6 +89,18 @@ function App() {
             <h1 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
               <span className="text-[var(--accent-primary)]">◉</span> Shader Visualizer
             </h1>
+            <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowPerformance(!showPerformance)}
+              aria-pressed={showPerformance}
+              className={`p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-all ${
+                showPerformance ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] opacity-60'
+              }`}
+              title={showPerformance ? 'Hide performance overlay' : 'Show performance overlay (FPS)'}
+            >
+              📊
+            </button>
             <button
               type="button"
               onClick={handleOpenSettings}
@@ -94,6 +109,7 @@ function App() {
             >
               ⚙️
             </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-[var(--text-muted)]">
