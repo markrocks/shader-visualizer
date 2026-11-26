@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useVisualizationStore } from '../../stores/visualizationStore';
 import { usePresetStore } from '../../stores/presetStore';
 import { VisualizationCanvas } from '../shared/VisualizationCanvas';
+import { LiveView } from '../shared/LiveView';
 import { DEFAULT_PARAMS } from '../../types';
 import type { Sequence, VisualizationParams } from '../../types';
 
@@ -15,7 +15,6 @@ function easeInOutCubic(t: number): number {
 }
 
 export function PreviewCanvas({ previewingSequence }: PreviewCanvasProps) {
-  const params = useVisualizationStore((state) => state.params);
   const { getPreset } = usePresetStore();
 
   // Sequence playback state
@@ -185,7 +184,7 @@ export function PreviewCanvas({ previewingSequence }: PreviewCanvasProps) {
           </div>
         </>
       ) : (
-        <VisualizationCanvas params={params} />
+        <LiveView />
       )}
       
       {/* Label */}
