@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useVisualizationStore } from '../../stores/visualizationStore';
 import type { EffectType, FrequencyBand } from '../../types';
 import { AudioAnalyzer } from '../shared/AudioAnalyzer';
+import { LearnChip } from '../Midi/LearnChip';
+import type { MappableParamKey } from '../../midi/types';
 
 const EFFECT_OPTIONS: { value: EffectType; label: string }[] = [
   { value: 'metaballs', label: '🫧 Metaballs' },
@@ -28,9 +30,11 @@ interface SliderProps {
   min?: number;
   max?: number;
   step?: number;
+  /** Param this slider controls, for MIDI Learn. */
+  paramKey?: MappableParamKey;
 }
 
-function Slider({ label, value, onChange, min = 0, max = 2, step = 0.01 }: SliderProps) {
+function Slider({ label, value, onChange, min = 0, max = 2, step = 0.01, paramKey }: SliderProps) {
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     onChange(parseFloat(e.target.value));
@@ -39,7 +43,10 @@ function Slider({ label, value, onChange, min = 0, max = 2, step = 0.01 }: Slide
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-xs">
-        <span className="text-[var(--text-muted)]">{label}</span>
+        <span className="text-[var(--text-muted)] flex items-center gap-1.5">
+          {label}
+          {paramKey && <LearnChip target={{ kind: 'param', param: paramKey }} />}
+        </span>
         <span className="text-[var(--text-secondary)]">{value.toFixed(2)}</span>
       </div>
       <input
@@ -64,9 +71,10 @@ interface ColorPickerProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  paramKey?: 'primaryColor' | 'secondaryColor';
 }
 
-function ColorPicker({ label, value, onChange }: ColorPickerProps) {
+function ColorPicker({ label, value, onChange, paramKey }: ColorPickerProps) {
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     onChange(e.target.value);
@@ -74,7 +82,10 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-[var(--text-muted)] flex-1">{label}</span>
+      <span className="text-xs text-[var(--text-muted)] flex-1 flex items-center gap-1.5">
+        {label}
+        {paramKey && <LearnChip target={{ kind: 'param', param: paramKey }} />}
+      </span>
       <div className="relative">
         <input
           type="color"
@@ -189,6 +200,7 @@ export function ParameterPanel() {
           </div>
 
           <Slider
+            paramKey="audioSensitivity"
             label="Audio Sensitivity"
             value={params.audioSensitivity}
             onChange={(v) => setParams({ audioSensitivity: v })}
@@ -197,6 +209,7 @@ export function ParameterPanel() {
           />
 
           <Slider
+            paramKey="smoothing"
             label="Smoothing"
             value={params.smoothing}
             onChange={(v) => setParams({ smoothing: v })}
@@ -234,6 +247,7 @@ export function ParameterPanel() {
         {params.mirrorQuadrants && (
           <>
             <Slider
+              paramKey="mirrorSegments"
               label="Segments"
               value={params.mirrorSegments || 4}
               onChange={(v) => setParams({ mirrorSegments: Math.round(v) })}
@@ -255,11 +269,13 @@ export function ParameterPanel() {
         </label>
         <ColorPicker
           label="Primary"
+          paramKey="primaryColor"
           value={params.primaryColor}
           onChange={(v) => setParams({ primaryColor: v })}
         />
         <ColorPicker
           label="Secondary"
+          paramKey="secondaryColor"
           value={params.secondaryColor}
           onChange={(v) => setParams({ secondaryColor: v })}
         />
@@ -276,16 +292,19 @@ export function ParameterPanel() {
           Animation
         </label>
         <Slider
+          paramKey="speed"
           label="Speed"
           value={params.speed}
           onChange={(v) => setParams({ speed: v })}
         />
         <Slider
+          paramKey="scale"
           label="Scale"
           value={params.scale}
           onChange={(v) => setParams({ scale: v })}
         />
         <Slider
+          paramKey="intensity"
           label="Intensity"
           value={params.intensity}
           onChange={(v) => setParams({ intensity: v })}
@@ -301,6 +320,7 @@ export function ParameterPanel() {
             Time Animation
           </label>
           <Slider
+            paramKey="waveFrequency"
             label="Wave Frequency"
             value={params.waveFrequency}
             onChange={(v) => setParams({ waveFrequency: v })}
@@ -308,6 +328,7 @@ export function ParameterPanel() {
             max={5}
           />
           <Slider
+            paramKey="evolutionRate"
             label="Evolution Rate"
             value={params.evolutionRate}
             onChange={(v) => setParams({ evolutionRate: v })}
@@ -324,6 +345,7 @@ export function ParameterPanel() {
             Metaballs
           </label>
           <Slider
+            paramKey="blobCount"
             label="Blob Count"
             value={params.blobCount || 5}
             onChange={(v) => setParams({ blobCount: Math.round(v) })}
@@ -340,6 +362,7 @@ export function ParameterPanel() {
             Particles
           </label>
           <Slider
+            paramKey="particleCount"
             label="Particle Count"
             value={(params.particleCount || 1000) / 100}
             onChange={(v) => setParams({ particleCount: Math.round(v * 100) })}
@@ -356,6 +379,7 @@ export function ParameterPanel() {
             Noise
           </label>
           <Slider
+            paramKey="noiseOctaves"
             label="Octaves"
             value={params.noiseOctaves || 4}
             onChange={(v) => setParams({ noiseOctaves: Math.round(v) })}
@@ -372,6 +396,7 @@ export function ParameterPanel() {
             Kaleidoscope
           </label>
           <Slider
+            paramKey="kaleidoscopeSegments"
             label="Segments"
             value={params.kaleidoscopeSegments || 6}
             onChange={(v) => setParams({ kaleidoscopeSegments: Math.round(v) })}
@@ -391,6 +416,7 @@ export function ParameterPanel() {
             Plasma
           </label>
           <Slider
+            paramKey="plasmaComplexity"
             label="Complexity"
             value={params.plasmaComplexity || 5}
             onChange={(v) => setParams({ plasmaComplexity: Math.round(v) })}
@@ -410,6 +436,7 @@ export function ParameterPanel() {
             Voronoi Cells
           </label>
           <Slider
+            paramKey="voronoiCells"
             label="Cell Count"
             value={params.voronoiCells || 20}
             onChange={(v) => setParams({ voronoiCells: Math.round(v) })}
@@ -418,6 +445,7 @@ export function ParameterPanel() {
             step={1}
           />
           <Slider
+            paramKey="voronoiEdgeWidth"
             label="Edge Width"
             value={params.voronoiEdgeWidth || 0.02}
             onChange={(v) => setParams({ voronoiEdgeWidth: v })}
@@ -437,6 +465,7 @@ export function ParameterPanel() {
             Tunnel
           </label>
           <Slider
+            paramKey="tunnelDepth"
             label="Depth"
             value={params.tunnelDepth || 10}
             onChange={(v) => setParams({ tunnelDepth: v })}
@@ -445,6 +474,7 @@ export function ParameterPanel() {
             step={0.5}
           />
           <Slider
+            paramKey="tunnelRings"
             label="Rings"
             value={params.tunnelRings || 8}
             onChange={(v) => setParams({ tunnelRings: Math.round(v) })}
@@ -464,6 +494,7 @@ export function ParameterPanel() {
             Truchet Tiles
           </label>
           <Slider
+            paramKey="truchetGridSize"
             label="Grid Size"
             value={params.truchetGridSize || 8}
             onChange={(v) => setParams({ truchetGridSize: Math.round(v) })}
@@ -472,6 +503,7 @@ export function ParameterPanel() {
             step={1}
           />
           <Slider
+            paramKey="truchetLineWidth"
             label="Line Width"
             value={params.truchetLineWidth || 0.08}
             onChange={(v) => setParams({ truchetLineWidth: v })}

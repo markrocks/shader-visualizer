@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useSettingsStore, saveDirectoryHandle, clearDirectoryHandle } from '../../stores/settingsStore';
 import { usePresetStore } from '../../stores/presetStore';
 import { requestDirectoryAccess, isFileSystemAccessSupported } from '../../utils/fileStorage';
+import { MidiSettings } from '../Midi/MidiSettings';
 
 export function SettingsModal() {
   const { 
@@ -83,7 +84,7 @@ export function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl">
+      <div className="w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">
@@ -100,6 +101,8 @@ export function SettingsModal() {
 
         {/* Content */}
         <div className="p-4 space-y-6">
+          <MidiSettings />
+
           {/* Storage Folder Section */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">

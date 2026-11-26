@@ -1,19 +1,35 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ParameterPanel, PresetManager, SequenceBuilder, PreviewCanvas } from './components/ConfigMode';
 import { FullscreenPlayer } from './components/PlayMode';
+import { LivePerformer } from './components/PlayMode/LivePerformer';
+import { PerformPanel } from './components/Perform/PerformPanel';
+import { startMidi } from './midi/engine';
+import { useLiveKeys } from './hooks/useLiveKeys';
+import { useMidiStore } from './stores/midiStore';
 import { SettingsModal } from './components/Settings';
 import { useSettingsStore, loadDirectoryHandle } from './stores/settingsStore';
 import { usePresetStore } from './stores/presetStore';
 import { verifyPermission } from './utils/fileStorage';
 import type { Sequence } from './types';
 
-type Tab = 'params' | 'presets' | 'sequences';
+type Tab = 'params' | 'perform' | 'presets' | 'sequences';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('params');
   const [playingSequence, setPlayingSequence] = useState<Sequence | null>(null);
   const [previewingSequence, setPreviewingSequence] = useState<Sequence | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const learnMode = useMidiStore((s) => s.learnMode);
+  const setLearnMode = useMidiStore((s) => s.setLearnMode);
+
+  // Connect MIDI once; the engine keeps listening whatever view is shown.
+  useEffect(() => {
+    startMidi();
+  }, []);
+
+  // Keyboard performance controls (disabled during sequence playback, which has its own keys)
+  useLiveKeys(!playingSequence);
   
   const { setDirectoryHandle, setIsSettingsOpen, storageFolderName } = useSettingsStore();
   const { loadFromFolder, isLoading } = usePresetStore();
@@ -73,6 +89,10 @@ function App() {
     return <FullscreenPlayer sequence={playingSequence} onExit={handleExitPlayer} />;
   }
 
+  if (isLive) {
+    return <LivePerformer onExit={() => setIsLive(false)} />;
+  }
+
   return (
     <div className="w-full h-full flex bg-[var(--bg-primary)]">
       {/* Settings Modal */}
@@ -86,6 +106,19 @@ function App() {
             <h1 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
               <span className="text-[var(--accent-primary)]">◉</span> Shader Visualizer
             </h1>
+            <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setLearnMode(!learnMode)}
+              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                learnMode
+                  ? 'bg-amber-400 text-black'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="MIDI Learn: click a learn badge, then move a control"
+            >
+              🎛 {learnMode ? 'Learning' : 'Learn'}
+            </button>
             <button
               type="button"
               onClick={handleOpenSettings}
@@ -94,6 +127,7 @@ function App() {
             >
               ⚙️
             </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-[var(--text-muted)]">
@@ -112,7 +146,7 @@ function App() {
           <button
             type="button"
             onClick={() => handleTabChange('params')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-all-smooth ${
+            className={`flex-1 px-2 py-3 text-sm font-medium transition-all-smooth ${
               activeTab === 'params'
                 ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-primary)]/50'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -122,8 +156,19 @@ function App() {
           </button>
           <button
             type="button"
+            onClick={() => handleTabChange('perform')}
+            className={`flex-1 px-2 py-3 text-sm font-medium transition-all-smooth ${
+              activeTab === 'perform'
+                ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-primary)]/50'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            Perform
+          </button>
+          <button
+            type="button"
             onClick={() => handleTabChange('presets')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-all-smooth ${
+            className={`flex-1 px-2 py-3 text-sm font-medium transition-all-smooth ${
               activeTab === 'presets'
                 ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-primary)]/50'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -134,7 +179,7 @@ function App() {
           <button
             type="button"
             onClick={() => handleTabChange('sequences')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-all-smooth ${
+            className={`flex-1 px-2 py-3 text-sm font-medium transition-all-smooth ${
               activeTab === 'sequences'
                 ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-primary)]/50'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -155,6 +200,7 @@ function App() {
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden">
           {activeTab === 'params' && <ParameterPanel />}
+          {activeTab === 'perform' && <PerformPanel onGoLive={() => setIsLive(true)} />}
           {activeTab === 'presets' && <PresetManager />}
           {activeTab === 'sequences' && (
             <SequenceBuilder 

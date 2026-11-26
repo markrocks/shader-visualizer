@@ -56,3 +56,10 @@ html, body, #root {
 .transition-all-smooth {
   transition: all 0.2s ease-out;
 }
+
+/* Live mode strobe: white for the first half of each period */
+@keyframes vj-strobe {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 0; }
+}

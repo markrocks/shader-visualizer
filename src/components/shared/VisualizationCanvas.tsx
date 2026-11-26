@@ -7,6 +7,8 @@ import { MetaballsEffect, ParticlesEffect, NoiseEffect, KaleidoscopeEffect, Plas
 interface VisualizationCanvasProps {
   params: VisualizationParams;
   className?: string;
+  /** Stop rendering (e.g. a hidden crossfade layer) to save GPU. */
+  paused?: boolean;
 }
 
 function Scene({ params }: { params: VisualizationParams }) {
@@ -49,12 +51,13 @@ function Scene({ params }: { params: VisualizationParams }) {
   );
 }
 
-export function VisualizationCanvas({ params, className = '' }: VisualizationCanvasProps) {
+export function VisualizationCanvas({ params, className = '', paused = false }: VisualizationCanvasProps) {
   return (
     <div className={`w-full h-full ${className}`} style={{ background: '#000' }}>
       <Canvas
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
+        frameloop={paused ? 'never' : 'always'}
         style={{ width: '100%', height: '100%' }}
       >
         <Scene params={params} />
